@@ -14,6 +14,19 @@
 #include <windows.h>
 #endif
 
+#ifdef PORTANDROID
+#include <sys/syscall.h>
+/*
+static int utimensat(int dirfd, const char *pathname,
+              const struct timespec times[2], int flags) {
+    return syscall(__NR_utimensat, dirfd, pathname, times, flags);
+}
+*/
+static int futimens(int fd, const struct timespec times[2]) {
+    return utimensat(fd, NULL, times, 0);
+}
+#endif
+
 struct VFileFD {
 	struct VFile d;
 	int fd;
@@ -166,7 +179,7 @@ static bool _vfdSync(struct VFile* vf, const void* buffer, size_t size) {
 	UNUSED(size);
 	struct VFileFD* vfd = (struct VFileFD*) vf;
 #ifndef _WIN32
-#ifdef __HAIKU__
+#if defined (__HAIKU__) || defined (PORTANDROID)
 	futimens(vfd->fd, NULL);
 #else
 	futimes(vfd->fd, NULL);
