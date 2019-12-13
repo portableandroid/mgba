@@ -22,7 +22,7 @@ static int utimensat(int dirfd, const char *pathname,
     return syscall(__NR_utimensat, dirfd, pathname, times, flags);
 }
 */
-static int futimens(int fd, const struct timespec times[2]) {
+int futimens(int fd, const struct timespec times[2]) {
     return utimensat(fd, NULL, times, 0);
 }
 #endif
