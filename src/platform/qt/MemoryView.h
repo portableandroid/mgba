@@ -21,18 +21,20 @@ public:
 
 public slots:
 	void update();
-	void jumpToAddress(uint32_t address) { m_ui.hexfield->jumpToAddress(address); }
+	void jumpToAddress(uint32_t address);
 
 private slots:
 	void setIndex(int);
 	void setSegment(int);
 	void updateSelection(uint32_t start, uint32_t end);
 	void updateStatus();
+	void saveRange();
 
 private:
 	Ui::MemoryView m_ui;
 
 	std::shared_ptr<CoreController> m_controller;
+	QPair<uint32_t, uint32_t> m_region;
 	QPair<uint32_t, uint32_t> m_selection;
 };
 

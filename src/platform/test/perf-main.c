@@ -19,6 +19,9 @@
 #ifdef _3DS
 #include <3ds.h>
 #endif
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
 
 #include <errno.h>
 #include <fcntl.h>
@@ -26,11 +29,12 @@
 #include <inttypes.h>
 #include <sys/time.h>
 
-#define PERF_OPTIONS "DF:L:NPS:"
+#define PERF_OPTIONS "DF:L:NPS:T"
 #define PERF_USAGE \
 	"\nBenchmark options:\n" \
 	"  -F FRAMES        Run for the specified number of FRAMES before exiting\n" \
 	"  -N               Disable video rendering entirely\n" \
+	"  -T               Use threaded video rendering\n" \
 	"  -P               CSV output, useful for parsing\n" \
 	"  -S SEC           Run for SEC in-game seconds before exiting\n" \
 	"  -L FILE          Load a savestate when starting the test\n" \
@@ -38,6 +42,7 @@
 
 struct PerfOpts {
 	bool noVideo;
+	bool threadedVideo;
 	bool csv;
 	unsigned duration;
 	unsigned frames;
@@ -48,6 +53,9 @@ struct PerfOpts {
 #ifdef _3DS
 extern bool allocateRomBuffer(void);
 FS_Archive sdmcArchive;
+#endif
+#ifdef __SWITCH__
+TimeType __nx_time_type = TimeType_LocalSystemClock;
 #endif
 
 static void _mPerfRunloop(struct mCore* context, int* frames, bool quiet);
@@ -71,6 +79,9 @@ int main(int argc, char** argv) {
 	if (!allocateRomBuffer()) {
 		return 1;
 	}
+#elif defined(__SWITCH__)
+	UNUSED(_mPerfShutdown);
+	consoleInit(NULL);
 #else
 	signal(SIGINT, _mPerfShutdown);
 #endif
@@ -79,7 +90,7 @@ int main(int argc, char** argv) {
 	struct mLogger logger = { .log = _log };
 	mLogSetDefaultLogger(&logger);
 
-	struct PerfOpts perfOpts = { false, false, 0, 0, 0, false };
+	struct PerfOpts perfOpts = { false, false, false, 0, 0, 0, false };
 	struct mSubParser subparser = {
 		.usage = PERF_USAGE,
 		.parse = _parsePerfOpts,
@@ -111,6 +122,9 @@ int main(int argc, char** argv) {
 	_outputBuffer = malloc(256 * 256 * 4);
 	if (perfOpts.csv) {
 		puts("game_code,frames,duration,renderer");
+#ifdef __SWITCH__
+		consoleUpdate(NULL);
+#endif
 	}
 	if (perfOpts.server) {
 		didFail = !_mPerfRunServer(args.fname, &args, &perfOpts);
@@ -128,6 +142,8 @@ int main(int argc, char** argv) {
 #ifdef _3DS
 	gfxExit();
 	acExit();
+#elif defined(__SWITCH__)
+	consoleExit(NULL);
 #endif
 
 	return didFail;
@@ -149,6 +165,12 @@ bool _mPerfRunCore(const char* fname, const struct mArguments* args, const struc
 	mCoreLoadFile(core, fname);
 	mCoreConfigInit(&core->config, "perf");
 	mCoreConfigLoad(&core->config);
+
+	if (perfOpts->threadedVideo) {
+		mCoreConfigSetOverrideIntValue(&core->config, "threadedVideo", 1);
+	} else {
+		mCoreConfigSetOverrideIntValue(&core->config, "threadedVideo", 0);
+	}
 
 	struct mCoreOptions opts = {};
 	mCoreConfigMap(&core->config, &opts);
@@ -188,6 +210,8 @@ bool _mPerfRunCore(const char* fname, const struct mArguments* args, const struc
 		const char* rendererName;
 		if (perfOpts->noVideo) {
 			rendererName = "none";
+		} else if (perfOpts->threadedVideo) {
+			rendererName = "threaded-software";
 		} else {
 			rendererName = "software";
 		}
@@ -199,6 +223,9 @@ bool _mPerfRunCore(const char* fname, const struct mArguments* args, const struc
 	} else {
 		printf("%u frames in %" PRIu64 " microseconds: %g fps (%gx)\n", frames, duration, scaledFrames / duration, scaledFrames / (duration * 60.f));
 	}
+#ifdef __SWITCH__
+	consoleUpdate(NULL);
+#endif
 
 	return true;
 }
@@ -223,6 +250,9 @@ static void _mPerfRunloop(struct mCore* core, int* frames, bool quiet) {
 			if (timeDiff >= 1000) {
 				printf("\033[2K\rCurrent FPS: %g (%gx)", lastFrames / (timeDiff / 1000.0f), lastFrames / (float) (60 * (timeDiff / 1000.0f)));
 				fflush(stdout);
+#ifdef __SWITCH__
+				consoleUpdate(NULL);
+#endif
 				lastEcho = currentTime;
 				lastFrames = 0;
 			}
@@ -254,7 +284,10 @@ static bool _mPerfRunServer(const char* listen, const struct mArguments* args, c
 		SocketSend(_socket, header, strlen(header));
 	}
 	char path[PATH_MAX];
-	while (SocketRecv(_socket, path, sizeof(path)) > 0) {
+	memset(path, 0, sizeof(path));
+	ssize_t i;
+	while ((i = SocketRecv(_socket, path, sizeof(path) - 1)) > 0) {
+		path[i] = '\0';
 		char* nl = strchr(path, '\n');
 		if (nl == path) {
 			break;
@@ -265,6 +298,7 @@ static bool _mPerfRunServer(const char* listen, const struct mArguments* args, c
 		if (!_mPerfRunCore(path, args, perfOpts)) {
 			break;
 		}
+		memset(path, 0, sizeof(path));
 	}
 	SocketClose(_socket);
 	SocketClose(server);
@@ -297,6 +331,9 @@ static bool _parsePerfOpts(struct mSubParser* parser, int option, const char* ar
 	case 'S':
 		opts->duration = strtoul(arg, 0, 10);
 		return !errno;
+	case 'T':
+		opts->threadedVideo = true;
+		return true;
 	case 'L':
 		opts->savestate = strdup(arg);
 		return true;

@@ -30,10 +30,12 @@ public slots:
 	void forceDraw() override { update(); }
 	void lockAspectRatio(bool lock) override;
 	void lockIntegerScaling(bool lock) override;
+	void interframeBlending(bool enable) override;
 	void filter(bool filter) override;
 	void framePosted() override;
 	void setShaders(struct VDir*) override {}
 	void clearShaders() override {}
+	void resizeContext() override;
 
 protected:
 	virtual void paintEvent(QPaintEvent*) override;
@@ -43,6 +45,7 @@ private:
 	unsigned m_width;
 	unsigned m_height;
 	QImage m_backing{nullptr};
+	QImage m_oldBacking{nullptr};
 	std::shared_ptr<CoreController> m_context = nullptr;
 };
 

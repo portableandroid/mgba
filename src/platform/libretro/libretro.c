@@ -11,17 +11,18 @@
 #include <mgba/core/cheats.h>
 #include <mgba/core/core.h>
 #include <mgba/core/log.h>
+#include <mgba/core/serialize.h>
 #include <mgba/core/version.h>
 #ifdef M_CORE_GB
 #include <mgba/gb/core.h>
 #include <mgba/internal/gb/gb.h>
+#include <mgba/internal/gb/mbc.h>
 #endif
 #ifdef M_CORE_GBA
 #include <mgba/gba/core.h>
 #include <mgba/gba/interface.h>
 #include <mgba/internal/gba/gba.h>
 #endif
-#include <mgba-util/circle-buffer.h>
 #include <mgba-util/memory.h>
 #include <mgba-util/vfs.h>
 
@@ -42,6 +43,10 @@ static void _postAudioBuffer(struct mAVStream*, blip_t* left, blip_t* right);
 static void _setRumble(struct mRumble* rumble, int enable);
 static uint8_t _readLux(struct GBALuminanceSource* lux);
 static void _updateLux(struct GBALuminanceSource* lux);
+static void _updateCamera(const uint32_t* buffer, unsigned width, unsigned height, size_t pitch);
+static void _startImage(struct mImageSource*, unsigned w, unsigned h, int colorFormats);
+static void _stopImage(struct mImageSource*);
+static void _requestImage(struct mImageSource*, const void** buffer, size_t* stride, enum mColorFormat* colorFormat);
 
 static struct mCore* core;
 static void* outputBuffer;
@@ -49,12 +54,20 @@ static void* data;
 static size_t dataSize;
 static void* savedata;
 static struct mAVStream stream;
-static int rumbleLevel;
-static struct CircleBuffer rumbleHistory;
+static int rumbleUp;
+static int rumbleDown;
 static struct mRumble rumble;
 static struct GBALuminanceSource lux;
 static int luxLevel;
 static struct mLogger logger;
+static struct retro_camera_callback cam;
+static struct mImageSource imageSource;
+static uint32_t* camData = NULL;
+static unsigned camWidth;
+static unsigned camHeight;
+static unsigned imcapWidth;
+static unsigned imcapHeight;
+static size_t camStride;
 
 static void _reloadSettings(void) {
 	struct mCoreOptions opts = {
@@ -187,8 +200,17 @@ void retro_get_system_av_info(struct retro_system_av_info* info) {
 	core->desiredVideoDimensions(core, &width, &height);
 	info->geometry.base_width = width;
 	info->geometry.base_height = height;
-	info->geometry.max_width = width;
-	info->geometry.max_height = height;
+#ifdef M_CORE_GB
+	if (core->platform(core) == PLATFORM_GB) {
+		info->geometry.max_width = 256;
+		info->geometry.max_height = 224;
+	} else
+#endif
+	{
+		info->geometry.max_width = width;
+		info->geometry.max_height = height;
+	}
+
 	info->geometry.aspect_ratio = width / (double) height;
 	info->timing.fps = core->frequency(core) / (float) core->frameCycles(core);
 	info->timing.sample_rate = 32768;
@@ -231,7 +253,6 @@ void retro_init(void) {
 	struct retro_rumble_interface rumbleInterface;
 	if (environCallback(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumbleInterface)) {
 		rumbleCallback = rumbleInterface.set_rumble_state;
-		CircleBufferInit(&rumbleHistory, RUMBLE_PWM);
 		rumble.setRumble = _setRumble;
 	} else {
 		rumbleCallback = 0;
@@ -255,6 +276,10 @@ void retro_init(void) {
 	stream.postAudioFrame = 0;
 	stream.postAudioBuffer = _postAudioBuffer;
 	stream.postVideoFrame = 0;
+
+	imageSource.startRequestImage = _startImage;
+	imageSource.stopRequestImage = _stopImage;
+	imageSource.requestImage = _requestImage;
 }
 
 void retro_deinit(void) {
@@ -272,7 +297,18 @@ void retro_run(void) {
 			.value = 0
 		};
 		if (environCallback(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
-			((struct GBA*) core->board)->allowOpposingDirections = strcmp(var.value, "yes") == 0;
+			struct GBA* gba = core->board;
+			struct GB* gb = core->board;
+			switch (core->platform(core)) {
+			case PLATFORM_GBA:
+				gba->allowOpposingDirections = strcmp(var.value, "yes") == 0;
+				break;
+			case PLATFORM_GB:
+				gb->allowOpposingDirections = strcmp(var.value, "yes") == 0;
+				break;
+			default:
+				break;
+			}
 		}
 
 		var.key = "mgba_frameskip";
@@ -320,6 +356,18 @@ void retro_run(void) {
 	unsigned width, height;
 	core->desiredVideoDimensions(core, &width, &height);
 	videoCallback(outputBuffer, width, height, BYTES_PER_PIXEL * 256);
+
+	if (rumbleCallback) {
+		if (rumbleUp) {
+			rumbleCallback(0, RETRO_RUMBLE_STRONG, rumbleUp * 0xFFFF / (rumbleUp + rumbleDown));
+			rumbleCallback(0, RETRO_RUMBLE_WEAK, rumbleUp * 0xFFFF / (rumbleUp + rumbleDown));
+		} else {
+			rumbleCallback(0, RETRO_RUMBLE_STRONG, 0);
+			rumbleCallback(0, RETRO_RUMBLE_WEAK, 0);
+		}
+		rumbleUp = 0;
+		rumbleDown = 0;
+	}
 }
 
 static void _setupMaps(struct mCore* core) {
@@ -410,9 +458,8 @@ void retro_reset(void) {
 	core->reset(core);
 	_setupMaps(core);
 
-	if (rumbleCallback) {
-		CircleBufferClear(&rumbleHistory);
-	}
+	rumbleUp = 0;
+	rumbleDown = 0;
 }
 
 bool retro_load_game(const struct retro_game_info* game) {
@@ -453,6 +500,7 @@ bool retro_load_game(const struct retro_game_info* game) {
 	core->setPeripheral(core, mPERIPH_RUMBLE, &rumble);
 
 	savedata = anonymousMemoryMap(SIZE_CART_FLASH1M);
+	memset(savedata, 0xFF, SIZE_CART_FLASH1M);
 	struct VFile* save = VFileFromMemory(savedata, SIZE_CART_FLASH1M);
 
 	_reloadSettings();
@@ -474,6 +522,14 @@ bool retro_load_game(const struct retro_game_info* game) {
 
 #ifdef M_CORE_GB
 	if (core->platform(core) == PLATFORM_GB) {
+		memset(&cam, 0, sizeof(cam));
+		cam.height = GBCAM_HEIGHT;
+		cam.width = GBCAM_WIDTH;
+		cam.caps = 1 << RETRO_CAMERA_BUFFER_RAW_FRAMEBUFFER;
+		cam.frame_raw_framebuffer = _updateCamera;
+		core->setPeripheral(core, mPERIPH_IMAGE_SOURCE, &imageSource);
+
+		environCallback(RETRO_ENVIRONMENT_GET_CAMERA_INTERFACE, &cam);
 		const char* modelName = mCoreConfigGetValue(&core->config, "gb.model");
 		struct GB* gb = core->board;
 
@@ -495,7 +551,7 @@ bool retro_load_game(const struct retro_game_info* game) {
 		default:
 			biosName = "gb_bios.bin";
 			break;
-		};
+		}
 	}
 #endif
 
@@ -517,32 +573,42 @@ void retro_unload_game(void) {
 	if (!core) {
 		return;
 	}
+	mCoreConfigDeinit(&core->config);
 	core->deinit(core);
 	mappedMemoryFree(data, dataSize);
 	data = 0;
 	mappedMemoryFree(savedata, SIZE_CART_FLASH1M);
 	savedata = 0;
-	CircleBufferDeinit(&rumbleHistory);
 }
 
 size_t retro_serialize_size(void) {
-	return core->stateSize(core);
+	struct VFile* vfm = VFileMemChunk(NULL, 0);
+	mCoreSaveStateNamed(core, vfm, SAVESTATE_SAVEDATA | SAVESTATE_RTC);
+	size_t size = vfm->size(vfm);
+	vfm->close(vfm);
+	return size;
 }
 
 bool retro_serialize(void* data, size_t size) {
-	if (size != retro_serialize_size()) {
+	struct VFile* vfm = VFileMemChunk(NULL, 0);
+	mCoreSaveStateNamed(core, vfm, SAVESTATE_SAVEDATA | SAVESTATE_RTC);
+	if ((ssize_t) size > vfm->size(vfm)) {
+		size = vfm->size(vfm);
+	} else if ((ssize_t) size < vfm->size(vfm)) {
+		vfm->close(vfm);
 		return false;
 	}
-	core->saveState(core, data);
+	vfm->seek(vfm, 0, SEEK_SET);
+	vfm->read(vfm, data, size);
+	vfm->close(vfm);
 	return true;
 }
 
 bool retro_unserialize(const void* data, size_t size) {
-	if (size != retro_serialize_size()) {
-		return false;
-	}
-	core->loadState(core, data);
-	return true;
+	struct VFile* vfm = VFileFromConstMemory(data, size);
+	bool success = mCoreLoadStateNamed(core, vfm, SAVESTATE_RTC);
+	vfm->close(vfm);
+	return success;
 }
 
 void retro_cheat_reset(void) {
@@ -560,24 +626,50 @@ void retro_cheat_set(unsigned index, bool enabled, const char* code) {
 		cheatSet = device->createSet(device, NULL);
 		mCheatAddSet(device, cheatSet);
 	}
-	// Convert the super wonky unportable libretro format to something normal
-	char realCode[] = "XXXXXXXX XXXXXXXX";
-	size_t len = strlen(code) + 1; // Include null terminator
-	size_t i, pos;
-	for (i = 0, pos = 0; i < len; ++i) {
-		if (isspace((int) code[i]) || code[i] == '+') {
-			realCode[pos] = ' ';
-		} else {
-			realCode[pos] = code[i];
+// Convert the super wonky unportable libretro format to something normal
+#ifdef M_CORE_GBA
+	if (core->platform(core) == PLATFORM_GBA) {
+		char realCode[] = "XXXXXXXX XXXXXXXX";
+		size_t len = strlen(code) + 1; // Include null terminator
+		size_t i, pos;
+		for (i = 0, pos = 0; i < len; ++i) {
+			if (isspace((int) code[i]) || code[i] == '+') {
+				realCode[pos] = ' ';
+			} else {
+				realCode[pos] = code[i];
+			}
+			if ((pos == 13 && (realCode[pos] == ' ' || !realCode[pos])) || pos == 17) {
+				realCode[pos] = '\0';
+				mCheatAddLine(cheatSet, realCode, 0);
+				pos = 0;
+				continue;
+			}
+			++pos;
 		}
-		if ((pos == 13 && (realCode[pos] == ' ' || !realCode[pos])) || pos == 17) {
-			realCode[pos] = '\0';
-			mCheatAddLine(cheatSet, realCode, 0);
-			pos = 0;
-			continue;
-		}
-		++pos;
 	}
+#endif
+#ifdef M_CORE_GB
+	if (core->platform(core) == PLATFORM_GB) {
+		char realCode[] = "XXX-XXX-XXX";
+		size_t len = strlen(code) + 1; // Include null terminator
+		size_t i, pos;
+		for (i = 0, pos = 0; i < len; ++i) {
+			if (isspace((int) code[i]) || code[i] == '+') {
+				realCode[pos] = '\0';
+			} else {
+				realCode[pos] = code[i];
+			}
+			if (pos == 11 || !realCode[pos]) {
+				realCode[pos] = '\0';
+				mCheatAddLine(cheatSet, realCode, 0);
+				pos = 0;
+				continue;
+			}
+			++pos;
+		}
+	}
+#endif
+	cheatSet->refresh(cheatSet, device);
 }
 
 unsigned retro_get_region(void) {
@@ -684,15 +776,11 @@ static void _setRumble(struct mRumble* rumble, int enable) {
 	if (!rumbleCallback) {
 		return;
 	}
-	rumbleLevel += enable;
-	if (CircleBufferSize(&rumbleHistory) == RUMBLE_PWM) {
-		int8_t oldLevel;
-		CircleBufferRead8(&rumbleHistory, &oldLevel);
-		rumbleLevel -= oldLevel;
+	if (enable) {
+		++rumbleUp;
+	} else {
+		++rumbleDown;
 	}
-	CircleBufferWrite8(&rumbleHistory, enable);
-	rumbleCallback(0, RETRO_RUMBLE_STRONG, rumbleLevel * 0xFFFF / RUMBLE_PWM);
-	rumbleCallback(0, RETRO_RUMBLE_WEAK, rumbleLevel * 0xFFFF / RUMBLE_PWM);
 }
 
 static void _updateLux(struct GBALuminanceSource* lux) {
@@ -730,4 +818,67 @@ static uint8_t _readLux(struct GBALuminanceSource* lux) {
 		value += GBA_LUX_LEVELS[luxLevel - 1];
 	}
 	return 0xFF - value;
+}
+
+static void _updateCamera(const uint32_t* buffer, unsigned width, unsigned height, size_t pitch) {
+	if (!camData || width > camWidth || height > camHeight) {
+		if (camData) {
+			free(camData);
+		}
+		unsigned bufPitch = pitch / sizeof(*buffer);
+		unsigned bufHeight = height;
+		if (imcapWidth > bufPitch) {
+			bufPitch = imcapWidth;
+		}
+		if (imcapHeight > bufHeight) {
+			bufHeight = imcapHeight;
+		}
+		camData = malloc(sizeof(*buffer) * bufHeight * bufPitch);
+		memset(camData, 0xFF, sizeof(*buffer) * bufHeight * bufPitch);
+		camWidth = width;
+		camHeight = bufHeight;
+		camStride = bufPitch;
+	}
+	size_t i;
+	for (i = 0; i < height; ++i) {
+		memcpy(&camData[camStride * i], &buffer[pitch * i / sizeof(*buffer)], pitch);
+	}
+}
+
+static void _startImage(struct mImageSource* image, unsigned w, unsigned h, int colorFormats) {
+	UNUSED(image);
+	UNUSED(colorFormats);
+
+	if (camData) {
+		free(camData);
+	}
+	camData = NULL;
+	imcapWidth = w;
+	imcapHeight = h;
+	cam.start();
+}
+
+static void _stopImage(struct mImageSource* image) {
+	UNUSED(image);
+	cam.stop();	
+}
+
+static void _requestImage(struct mImageSource* image, const void** buffer, size_t* stride, enum mColorFormat* colorFormat) {
+	UNUSED(image);
+	if (!camData) {
+		cam.start();
+		*buffer = NULL;
+		return;
+	}
+	size_t offset = 0;
+	if (imcapWidth < camWidth) {
+		offset += (camWidth - imcapWidth) / 2;
+	}
+	if (imcapHeight < camHeight) {
+		offset += (camHeight - imcapHeight) / 2 * camStride;
+	}
+
+	*buffer = &camData[offset];
+	*stride = camStride;
+	*colorFormat = mCOLOR_XRGB8;
 }

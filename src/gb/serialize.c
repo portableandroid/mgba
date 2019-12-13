@@ -64,7 +64,7 @@ void GBSerialize(struct GB* gb, struct GBSerializedState* state) {
 	GBTimerSerialize(&gb->timer, state);
 	GBAudioSerialize(&gb->audio, state);
 
-	if (gb->model == GB_MODEL_SGB) {
+	if (gb->model & GB_MODEL_SGB) {
 		GBSGBSerialize(gb, state);
 	}
 }
@@ -113,7 +113,7 @@ bool GBDeserialize(struct GB* gb, const struct GBSerializedState* state) {
 		error = true;
 	}
 	LOAD_16LE(check16, 0, &state->video.x);
-	if (check16 < 0 || check16 > GB_VIDEO_HORIZONTAL_PIXELS) {
+	if (check16 < -7 || check16 > GB_VIDEO_HORIZONTAL_PIXELS) {
 		mLOG(GB_STATE, WARN, "Savestate is corrupted: video x is out of range");
 		error = true;
 	}
@@ -135,10 +135,20 @@ bool GBDeserialize(struct GB* gb, const struct GBSerializedState* state) {
 	if (ucheck16 >= 0x40) {
 		mLOG(GB_STATE, WARN, "Savestate is corrupted: OCPS is out of range");
 	}
+	bool differentBios = !gb->biosVf || gb->model != state->model;
+	if (state->io[0x50] == 0xFF) {
+		if (differentBios) {
+			mLOG(GB_STATE, WARN, "Incompatible savestate, please restart with correct BIOS in %s mode", GBModelToName(state->model));
+			error = true;
+		} else {
+			// TODO: Make it work correctly
+			mLOG(GB_STATE, WARN, "Loading savestate in BIOS. This may not work correctly");
+		}
+	}
 	if (error) {
 		return false;
 	}
-	gb->timing.root = NULL;
+	mTimingClear(&gb->timing);
 	LOAD_32LE(gb->timing.masterCycles, 0, &state->masterCycles);
 
 	gb->cpu->a = state->cpu.a;
@@ -173,7 +183,6 @@ bool GBDeserialize(struct GB* gb, const struct GBSerializedState* state) {
 		mTimingSchedule(&gb->timing, &gb->eiPending, when);
 	}
 
-	enum GBModel oldModel = gb->model;
 	gb->model = state->model;
 
 	if (gb->model < GB_MODEL_CGB) {
@@ -182,17 +191,19 @@ bool GBDeserialize(struct GB* gb, const struct GBSerializedState* state) {
 		gb->audio.style = GB_AUDIO_CGB;
 	}
 
-	if (gb->model != GB_MODEL_SGB || oldModel != GB_MODEL_SGB) {
-		gb->video.sgbBorders = false;
-	}
-
 	GBMemoryDeserialize(gb, state);
 	GBVideoDeserialize(&gb->video, state);
 	GBIODeserialize(gb, state);
 	GBTimerDeserialize(&gb->timer, state);
 	GBAudioDeserialize(&gb->audio, state);
 
-	if (gb->model == GB_MODEL_SGB && canSgb) {
+	if (gb->memory.io[0x50] == 0xFF) {
+		GBMapBIOS(gb);
+	} else {
+		GBUnmapBIOS(gb);
+	}
+
+	if (gb->model & GB_MODEL_SGB && canSgb) {
 		GBSGBDeserialize(gb, state);
 	}
 
@@ -214,6 +225,7 @@ void GBSGBSerialize(struct GB* gb, struct GBSerializedState* state) {
 	flags = GBSerializedSGBFlagsSetRenderMode(flags, gb->video.renderer->sgbRenderMode);
 	flags = GBSerializedSGBFlagsSetBufferIndex(flags, gb->video.sgbBufferIndex);
 	flags = GBSerializedSGBFlagsSetReqControllers(flags, gb->sgbControllers);
+	flags = GBSerializedSGBFlagsSetIncrement(flags, gb->sgbIncrement);
 	flags = GBSerializedSGBFlagsSetCurrentController(flags, gb->sgbCurrentController);
 	STORE_32LE(flags, 0, &state->sgb.flags);
 
@@ -235,6 +247,7 @@ void GBSGBSerialize(struct GB* gb, struct GBSerializedState* state) {
 	if (gb->video.renderer->sgbAttributes) {
 		memcpy(state->sgb.attributes, gb->video.renderer->sgbAttributes, sizeof(state->sgb.attributes));
 	}
+	gb->video.renderer->enableSGBBorder(gb->video.renderer, gb->video.sgbBorders);
 }
 
 void GBSGBDeserialize(struct GB* gb, const struct GBSerializedState* state) {
@@ -248,6 +261,12 @@ void GBSGBDeserialize(struct GB* gb, const struct GBSerializedState* state) {
 	gb->video.sgbBufferIndex = GBSerializedSGBFlagsGetBufferIndex(flags);
 	gb->sgbControllers = GBSerializedSGBFlagsGetReqControllers(flags);
 	gb->sgbCurrentController = GBSerializedSGBFlagsGetCurrentController(flags);
+	gb->sgbIncrement = GBSerializedSGBFlagsGetIncrement(flags);
+
+	// Old versions of mGBA stored the increment bits here
+	if (gb->sgbBit > 129 && gb->sgbBit & 2) {
+		gb->sgbIncrement = true;
+	}
 
 	memcpy(gb->video.sgbPacketBuffer, state->sgb.packet, sizeof(state->sgb.packet));
 	memcpy(gb->sgbPacket, state->sgb.inProgressPacket, sizeof(state->sgb.inProgressPacket));

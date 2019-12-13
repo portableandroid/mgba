@@ -51,6 +51,7 @@ VideoView::VideoView(QWidget* parent)
 	if (s_acodecMap.empty()) {
 		s_acodecMap["mp3"] = "libmp3lame";
 		s_acodecMap["opus"] = "libopus";
+		s_acodecMap["vorbis"] = "libvorbis";
 		s_acodecMap["uncompressed"] = "pcm_s16le";
 	}
 	if (s_vcodecMap.empty()) {
@@ -99,9 +100,9 @@ VideoView::VideoView(QWidget* parent)
 
 	setPreset({
 		.container = "MKV",
-		.vcodec = "PNG",
+		.vcodec = "h.264",
 		.acodec = "FLAC",
-		.vbr = 0,
+		.vbr = -1,
 		.abr = 0,
 		.dims = QSize(),
 	});
@@ -170,8 +171,8 @@ void VideoView::updatePresets() {
 
 	addPreset(m_ui.presetWebM, {
 		.container = "WebM",
-		.vcodec = "VP8",
-		.acodec = "Vorbis",
+		.vcodec = "VP9",
+		.acodec = "Opus",
 		.vbr = 800,
 		.abr = 128
 	});
@@ -179,9 +180,9 @@ void VideoView::updatePresets() {
 	if (m_nativeWidth && m_nativeHeight) {
 		addPreset(m_ui.presetLossless, {
 			.container = "MKV",
-			.vcodec = "PNG",
+			.vcodec = "h.264",
 			.acodec = "FLAC",
-			.vbr = 0,
+			.vbr = -1,
 			.abr = 0,
 			.dims = QSize(m_nativeWidth, m_nativeHeight)
 		});
@@ -274,8 +275,12 @@ void VideoView::setAudioCodec(const QString& codec, bool manual) {
 void VideoView::setVideoCodec(const QString& codec, bool manual) {
 	free(m_videoCodecCstr);
 	m_videoCodec = sanitizeCodec(codec, s_vcodecMap);
-	m_videoCodecCstr = strdup(m_videoCodec.toUtf8().constData());
-	if (!FFmpegEncoderSetVideo(&m_encoder, m_videoCodecCstr, m_vbr)) {
+	if (m_videoCodec == "none") {
+		m_videoCodecCstr = nullptr;
+	} else {
+		m_videoCodecCstr = strdup(m_videoCodec.toUtf8().constData());
+	}
+	if (!FFmpegEncoderSetVideo(&m_encoder, m_videoCodecCstr, m_vbr, 0)) {
 		free(m_videoCodecCstr);
 		m_videoCodecCstr = nullptr;
 		m_videoCodec = QString();
@@ -311,8 +316,8 @@ void VideoView::setAudioBitrate(int br, bool manual) {
 }
 
 void VideoView::setVideoBitrate(int br, bool manual) {
-	m_vbr = br * 1000;
-	FFmpegEncoderSetVideo(&m_encoder, m_videoCodecCstr, m_vbr);
+	m_vbr = br >= 0 ? br * 1000 : 0;
+	FFmpegEncoderSetVideo(&m_encoder, m_videoCodecCstr, m_vbr, 0);
 	validateSettings();
 	if (manual) {
 		uncheckIncompatible();

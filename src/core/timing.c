@@ -14,6 +14,7 @@ void mTimingInit(struct mTiming* timing, int32_t* relativeCycles, int32_t* nextE
 }
 
 void mTimingDeinit(struct mTiming* timing) {
+	UNUSED(timing);
 }
 
 void mTimingClear(struct mTiming* timing) {
@@ -28,12 +29,16 @@ void mTimingSchedule(struct mTiming* timing, struct mTimingEvent* event, int32_t
 	if (nextEvent < *timing->nextEvent) {
 		*timing->nextEvent = nextEvent;
 	}
+	if (timing->reroot) {
+		timing->root = timing->reroot;
+		timing->reroot = NULL;
+	}
 	struct mTimingEvent** previous = &timing->root;
 	struct mTimingEvent* next = timing->root;
 	unsigned priority = event->priority;
 	while (next) {
 		int32_t nextWhen = next->when - timing->masterCycles;
-		if (nextWhen > when || (nextWhen == when && next->priority > priority)) {
+		if (nextWhen > nextEvent || (nextWhen == nextEvent && next->priority > priority)) {
 			break;
 		}
 		previous = &next->next;
@@ -44,6 +49,10 @@ void mTimingSchedule(struct mTiming* timing, struct mTimingEvent* event, int32_t
 }
 
 void mTimingDeschedule(struct mTiming* timing, struct mTimingEvent* event) {
+	if (timing->reroot) {
+		timing->root = timing->reroot;
+		timing->reroot = NULL;
+	}
 	struct mTimingEvent** previous = &timing->root;
 	struct mTimingEvent* next = timing->root;
 	while (next) {
@@ -58,6 +67,9 @@ void mTimingDeschedule(struct mTiming* timing, struct mTimingEvent* event) {
 
 bool mTimingIsScheduled(const struct mTiming* timing, const struct mTimingEvent* event) {
 	const struct mTimingEvent* next = timing->root;
+	if (!next) {
+		next = timing->reroot;
+	}
 	while (next) {
 		if (next == event) {
 			return true;

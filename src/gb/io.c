@@ -11,7 +11,7 @@
 
 mLOG_DEFINE_CATEGORY(GB_IO, "GB I/O", "gb.io");
 
-const char* const GBIORegisterNames[] = {
+MGBA_EXPORT const char* const GBIORegisterNames[] = {
 	[REG_JOYP] = "JOYP",
 	[REG_SB] = "SB",
 	[REG_SC] = "SC",
@@ -104,6 +104,9 @@ static const uint8_t _registerMask[] = {
 	[REG_IE]   = 0xE0,
 };
 
+static uint8_t _readKeys(struct GB* gb);
+static uint8_t _readKeysFiltered(struct GB* gb);
+
 static void _writeSGBBits(struct GB* gb, int bits) {
 	if (!bits) {
 		gb->sgbBit = -1;
@@ -112,23 +115,21 @@ static void _writeSGBBits(struct GB* gb, int bits) {
 	if (bits == gb->currentSgbBits) {
 		return;
 	}
-	gb->currentSgbBits = bits;
-	if (gb->sgbBit > 128) {
-		switch (bits) {
-		case 1:
-			gb->sgbBit |= 2;
-			break;
-		case 2:
-			gb->sgbBit |= 4;
-			break;
-		case 3:
-			if (gb->sgbBit == 135) {
-				gb->sgbBit &= ~6;
-				gb->sgbCurrentController = (gb->sgbCurrentController + 1) & gb->sgbControllers;
-			}
-			break;
+	switch (bits) {
+	case 0:
+	case 1:
+		if (gb->currentSgbBits & 2) {
+			gb->sgbIncrement = !gb->sgbIncrement;
 		}
+		break;
+	case 3:
+		if (gb->sgbIncrement) {
+			gb->sgbIncrement = false;
+			gb->sgbCurrentController = (gb->sgbCurrentController + 1) & gb->sgbControllers;
+		}
+		break;
 	}
+	gb->currentSgbBits = bits;
 	if (gb->sgbBit == 128 && bits == 2) {
 		GBVideoWriteSGBPacket(&gb->video, gb->sgbPacket);
 		++gb->sgbBit;
@@ -180,10 +181,17 @@ void GBIOReset(struct GB* gb) {
 	GBIOWrite(gb, REG_NR43, 0x00);
 	GBIOWrite(gb, REG_NR50, 0x77);
 	GBIOWrite(gb, REG_NR51, 0xF3);
-	GBIOWrite(gb, REG_LCDC, 0x91);
+	if (!gb->biosVf) {
+		GBIOWrite(gb, REG_LCDC, 0x91);
+		gb->memory.io[0x50] = 1;
+	} else {
+		GBIOWrite(gb, REG_LCDC, 0x00);
+		gb->memory.io[0x50] = 0xFF;
+	}
 	GBIOWrite(gb, REG_SCY, 0x00);
 	GBIOWrite(gb, REG_SCX, 0x00);
 	GBIOWrite(gb, REG_LYC, 0x00);
+	GBIOWrite(gb, REG_DMA, 0xFF);
 	GBIOWrite(gb, REG_BGP, 0xFC);
 	if (gb->model < GB_MODEL_CGB) {
 		GBIOWrite(gb, REG_OBP0, 0xFF);
@@ -191,7 +199,7 @@ void GBIOReset(struct GB* gb) {
 	}
 	GBIOWrite(gb, REG_WY, 0x00);
 	GBIOWrite(gb, REG_WX, 0x00);
-	if (gb->model >= GB_MODEL_CGB) {
+	if (gb->model & GB_MODEL_CGB) {
 		GBIOWrite(gb, REG_UNK4C, 0);
 		GBIOWrite(gb, REG_JOYP, 0xFF);
 		GBIOWrite(gb, REG_VBK, 0);
@@ -203,7 +211,7 @@ void GBIOReset(struct GB* gb) {
 		GBIOWrite(gb, REG_HDMA3, 0xFF);
 		GBIOWrite(gb, REG_HDMA4, 0xFF);
 		gb->memory.io[REG_HDMA5] = 0xFF;
-	} else if (gb->model == GB_MODEL_SGB) {
+	} else if (gb->model & GB_MODEL_SGB) {
 		GBIOWrite(gb, REG_JOYP, 0xFF);
 	}
 	GBIOWrite(gb, REG_IE, 0x00);
@@ -394,10 +402,12 @@ void GBIOWrite(struct GB* gb, unsigned address, uint8_t value) {
 		}
 		break;
 	case REG_JOYP:
-		if (gb->model == GB_MODEL_SGB) {
+		gb->memory.io[REG_JOYP] = value | 0x0F;
+		_readKeys(gb);
+		if (gb->model & GB_MODEL_SGB) {
 			_writeSGBBits(gb, (value >> 4) & 3);
 		}
-		break;
+		return;
 	case REG_TIMA:
 		if (value && mTimingUntil(&gb->timing, &gb->timer.irq) > 1) {
 			mTimingDeschedule(&gb->timing, &gb->timer.irq);
@@ -448,6 +458,9 @@ void GBIOWrite(struct GB* gb, unsigned address, uint8_t value) {
 		value = gb->video.stat;
 		break;
 	case 0x50:
+		if (gb->memory.io[0x50] != 0xFF) {
+			break;
+		}
 		GBUnmapBIOS(gb);
 		if (gb->model >= GB_MODEL_CGB && gb->memory.io[REG_UNK4C] < 0x80) {
 			gb->model = GB_MODEL_DMG;
@@ -485,7 +498,9 @@ void GBIOWrite(struct GB* gb, unsigned address, uint8_t value) {
 				gb->memory.io[REG_BCPD] = gb->video.palette[gb->video.bcpIndex >> 1] >> (8 * (gb->video.bcpIndex & 1));
 				break;
 			case REG_BCPD:
-				GBVideoProcessDots(&gb->video, 0);
+				if (gb->video.mode != 3) {
+					GBVideoProcessDots(&gb->video, 0);
+				}
 				GBVideoWritePalette(&gb->video, address, value);
 				return;
 			case REG_OCPS:
@@ -494,7 +509,9 @@ void GBIOWrite(struct GB* gb, unsigned address, uint8_t value) {
 				gb->memory.io[REG_OCPD] = gb->video.palette[8 * 4 + (gb->video.ocpIndex >> 1)] >> (8 * (gb->video.ocpIndex & 1));
 				break;
 			case REG_OCPD:
-				GBVideoProcessDots(&gb->video, 0);
+				if (gb->video.mode != 3) {
+					GBVideoProcessDots(&gb->video, 0);
+				}
 				GBVideoWritePalette(&gb->video, address, value);
 				return;
 			case REG_SVBK:
@@ -522,7 +539,8 @@ static uint8_t _readKeys(struct GB* gb) {
 	if (gb->sgbCurrentController != 0) {
 		keys = 0;
 	}
-	switch (gb->memory.io[REG_JOYP] & 0x30) {
+	uint8_t joyp = gb->memory.io[REG_JOYP];
+	switch (joyp & 0x30) {
 	case 0x30:
 		keys = gb->sgbCurrentController;
 		break;
@@ -535,13 +553,42 @@ static uint8_t _readKeys(struct GB* gb) {
 		keys |= keys >> 4;
 		break;
 	}
-	return (0xC0 | (gb->memory.io[REG_JOYP] | 0xF)) ^ (keys & 0xF);
+	gb->memory.io[REG_JOYP] = (0xCF | joyp) ^ (keys & 0xF);
+	if (joyp & ~gb->memory.io[REG_JOYP] & 0xF) {
+		gb->memory.io[REG_IF] |= (1 << GB_IRQ_KEYPAD);
+		GBUpdateIRQs(gb);
+	}
+	return gb->memory.io[REG_JOYP];
+}
+
+static uint8_t _readKeysFiltered(struct GB* gb) {
+	uint8_t keys = _readKeys(gb);
+	if (!gb->allowOpposingDirections && (keys & 0x30) == 0x20) {
+		unsigned rl = keys & 0x03;
+		unsigned ud = keys & 0x0C;
+		if (!rl) {
+			keys |= 0x03;
+		}
+		if (!ud) {
+			keys |= 0x0C;
+		}
+	}
+	return keys;
 }
 
 uint8_t GBIORead(struct GB* gb, unsigned address) {
 	switch (address) {
 	case REG_JOYP:
-		return _readKeys(gb);
+		{
+			size_t c;
+			for (c = 0; c < mCoreCallbacksListSize(&gb->coreCallbacks); ++c) {
+				struct mCoreCallbacks* callbacks = mCoreCallbacksListGetPointer(&gb->coreCallbacks, c);
+				if (callbacks->keysRead) {
+					callbacks->keysRead(callbacks->context);
+				}
+			}
+		}
+		return _readKeysFiltered(gb);
 	case REG_IE:
 		return gb->memory.ie;
 	case REG_WAVE_0:
@@ -600,6 +647,7 @@ uint8_t GBIORead(struct GB* gb, unsigned address) {
 	case REG_SCX:
 	case REG_LY:
 	case REG_LYC:
+	case REG_DMA:
 	case REG_BGP:
 	case REG_OBP0:
 	case REG_OBP1:
@@ -624,9 +672,6 @@ uint8_t GBIORead(struct GB* gb, unsigned address) {
 			case REG_SVBK:
 				// Handled transparently by the registers
 				goto success;
-			case REG_DMA:
-				mLOG(GB_IO, STUB, "Reading from unknown register FF%02X", address);
-				return 0;
 			default:
 				break;
 			}
@@ -639,10 +684,7 @@ uint8_t GBIORead(struct GB* gb, unsigned address) {
 }
 
 void GBTestKeypadIRQ(struct GB* gb) {
-	if (_readKeys(gb)) {
-		gb->memory.io[REG_IF] |= (1 << GB_IRQ_KEYPAD);
-		GBUpdateIRQs(gb);
-	}
+	_readKeys(gb);
 }
 
 struct GBSerializedState;
@@ -689,7 +731,7 @@ void GBIODeserialize(struct GB* gb, const struct GBSerializedState* state) {
 	gb->video.renderer->writeVideoRegister(gb->video.renderer, REG_SCX, state->io[REG_SCX]);
 	gb->video.renderer->writeVideoRegister(gb->video.renderer, REG_WY, state->io[REG_WY]);
 	gb->video.renderer->writeVideoRegister(gb->video.renderer, REG_WX, state->io[REG_WX]);
-	if (gb->model == GB_MODEL_SGB) {
+	if (gb->model & GB_MODEL_SGB) {
 		gb->video.renderer->writeVideoRegister(gb->video.renderer, REG_BGP, state->io[REG_BGP]);
 		gb->video.renderer->writeVideoRegister(gb->video.renderer, REG_OBP0, state->io[REG_OBP0]);
 		gb->video.renderer->writeVideoRegister(gb->video.renderer, REG_OBP1, state->io[REG_OBP1]);

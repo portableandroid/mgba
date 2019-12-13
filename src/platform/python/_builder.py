@@ -13,15 +13,15 @@ libdir = os.environ.get("LIBDIR")
 
 cpp = shlex.split(os.environ.get("CPP", "cc -E"))
 cppflags = shlex.split(os.environ.get("CPPFLAGS", ""))
-if __name__ == "__main__":
-    cppflags.extend(sys.argv[1:])
 cppflags.extend(["-I" + incdir, "-I" + srcdir, "-I" + bindir])
 
 ffi.set_source("mgba._pylib", """
 #define static
 #define inline
-#include "flags.h"
+#define MGBA_EXPORT
+#include <mgba/flags.h>
 #define OPAQUE_THREADING
+#include <mgba/core/blip_buf.h>
 #include <mgba/core/cache-set.h>
 #include <mgba-util/common.h>
 #include <mgba/core/core.h>
@@ -66,6 +66,18 @@ for line in preprocessed.splitlines():
     lines.append(line)
 ffi.cdef('\n'.join(lines))
 
+ffi.cdef("""
+struct GBARTC {
+    int32_t bytesRemaining;
+    int32_t transferStep;
+    int32_t bitsRead;
+    int32_t bits;
+    int32_t commandActive;
+    RTCCommandData command;
+    RTCControl control;
+    uint8_t time[7];
+};""", packed=True)
+
 preprocessed = subprocess.check_output(cpp + ["-fno-inline", "-P"] + cppflags + [os.path.join(pydir, "lib.h")], universal_newlines=True)
 
 lines = []
@@ -78,10 +90,6 @@ ffi.embedding_api('\n'.join(lines))
 
 ffi.embedding_init_code("""
     import os, os.path
-    venv = os.getenv('VIRTUAL_ENV')
-    if venv:
-        activate = os.path.join(venv, 'bin', 'activate_this.py')
-        exec(compile(open(activate, "rb").read(), activate, 'exec'), dict(__file__=activate))
     from mgba._pylib import ffi, lib
     symbols = {}
     globalSyms = {
@@ -109,7 +117,7 @@ ffi.embedding_init_code("""
         from mgba.vfs import VFile
         vf = VFile(vf)
         name = ffi.string(name)
-        source = vf.readAll().decode('utf-8')
+        source = vf.read_all().decode('utf-8')
         try:
             code = compile(source, name, 'exec')
             pendingCode.append(code)

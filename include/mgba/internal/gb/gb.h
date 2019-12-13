@@ -94,6 +94,7 @@ struct GB {
 	bool isPristine;
 	size_t pristineRomSize;
 	size_t yankedRomSize;
+	enum GBMemoryBankControllerType yankedMbc;
 	uint32_t romCrc32;
 	struct VFile* romVf;
 	struct VFile* biosVf;
@@ -109,6 +110,7 @@ struct GB {
 	uint8_t sgbPacket[16];
 	uint8_t sgbControllers;
 	uint8_t sgbCurrentController;
+	bool sgbIncrement;
 
 	struct mCoreCallbacksList coreCallbacks;
 	struct mAVStream* stream;
@@ -117,6 +119,8 @@ struct GB {
 	bool earlyExit;
 	struct mTimingEvent eiPending;
 	unsigned doubleSpeed;
+
+	bool allowOpposingDirections;
 };
 
 struct GBCartridge {
@@ -148,6 +152,7 @@ void GBDestroy(struct GB* gb);
 
 void GBReset(struct LR35902Core* cpu);
 void GBSkipBIOS(struct GB* gb);
+void GBMapBIOS(struct GB* gb);
 void GBUnmapBIOS(struct GB* gb);
 void GBDetectModel(struct GB* gb);
 
@@ -159,8 +164,8 @@ bool GBLoadROM(struct GB* gb, struct VFile* vf);
 bool GBLoadSave(struct GB* gb, struct VFile* vf);
 void GBUnloadROM(struct GB* gb);
 void GBSynthesizeROM(struct VFile* vf);
+void GBYankROM(struct GB* gb);
 
-bool GBIsBIOS(struct VFile* vf);
 void GBLoadBIOS(struct GB* gb, struct VFile* vf);
 
 void GBSramClean(struct GB* gb, uint32_t frameCount);
@@ -171,12 +176,12 @@ void GBSavedataUnmask(struct GB* gb);
 struct Patch;
 void GBApplyPatch(struct GB* gb, struct Patch* patch);
 
-bool GBIsROM(struct VFile* vf);
 void GBGetGameTitle(const struct GB* gba, char* out);
 void GBGetGameCode(const struct GB* gba, char* out);
 
 void GBTestKeypadIRQ(struct GB* gb);
 
+void GBFrameStarted(struct GB* gb);
 void GBFrameEnded(struct GB* gb);
 
 CXX_GUARD_END

@@ -88,6 +88,19 @@ MemoryModel::MemoryModel(QWidget* parent)
 		update();
 	});
 
+	connect(verticalScrollBar(), &QSlider::actionTriggered, [this](int action) {
+		if (action == QSlider::SliderSingleStepAdd) {
+			++m_top;
+		} else if (action == QSlider::SliderSingleStepSub) {
+			--m_top;
+		} else {
+			return;
+		}
+		boundsCheck();
+		verticalScrollBar()->setValue(m_top);
+		update();
+	});
+
 	setRegion(0, 0x10000000, tr("All"));
 }
 
@@ -149,12 +162,6 @@ void MemoryModel::jumpToAddress(const QString& hex) {
 }
 
 void MemoryModel::jumpToAddress(uint32_t address) {
-	if (address >= 0x10000000) {
-		return;
-	}
-	if (address < m_base || address >= m_base + m_size) {
-		setRegion(0, 0x10000000, tr("All"));
-	}
 	m_top = (address - m_base) / 16;
 	boundsCheck();
 	verticalScrollBar()->setValue(m_top);

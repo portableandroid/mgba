@@ -13,12 +13,14 @@ CXX_GUARD_START
 #ifndef DISABLE_THREADING
 #ifdef USE_PTHREADS
 #include <mgba-util/platform/posix/threading.h>
-#elif _WIN32
+#elif defined(_WIN32)
 #include <mgba-util/platform/windows/threading.h>
-#elif PSP2
+#elif defined(PSP2)
 #include <mgba-util/platform/psp2/threading.h>
-#elif _3DS
+#elif defined(_3DS)
 #include <mgba-util/platform/3ds/threading.h>
+#elif defined(__SWITCH__)
+#include <mgba-util/platform/switch/threading.h>
 #else
 #define DISABLE_THREADING
 #endif
@@ -27,10 +29,16 @@ CXX_GUARD_START
 #ifdef _3DS
 // ctrulib already has a type called Thread
 #include <3ds/thread.h>
+#elif defined(__SWITCH__)
+#include <switch/kernel/thread.h>
 #else
 typedef void* Thread;
 #endif
+#ifdef __SWITCH__
+#include <switch/kernel/mutex.h>
+#else
 typedef void* Mutex;
+#endif
 typedef void* Condition;
 
 static inline int MutexInit(Mutex* mutex) {
