@@ -41,6 +41,10 @@ FS_Archive sdmcArchive;
 
 #include "libretro_core_options.h"
 
+#ifdef PORTANDROID
+#include "emu_retro.h"
+#endif
+
 #define SAMPLES 512
 #define RUMBLE_PWM 35
 
@@ -630,7 +634,13 @@ void retro_run(void) {
 			mCoreConfigSetUIntValue(&core->config, "frameskip", strtol(var.value, NULL, 10));
 			mCoreLoadConfig(core);
 		}
-
+#ifdef PORTANDROID
+		var.key = "mgba_solar_sensor_level";
+		var.value = 0;
+		if (environCallback(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+			luxLevel = strtol(var.value, NULL, 10);
+		}
+#endif
 #if defined(COLOR_16_BIT) && defined(COLOR_5_6_5)
 		_loadColorCorrectionSettings();
 #endif
@@ -672,7 +682,10 @@ void retro_run(void) {
 			wasAdjustingLux = true;
 		}
 	}
-
+#ifdef PORTANDROID
+	mCoreConfigSetUIntValue(&core->config, "frameskip", cb_context.video_skip);
+	mCoreLoadConfig(core);
+#endif
 	core->runFrame(core);
 	unsigned width, height;
 	core->desiredVideoDimensions(core, &width, &height);
@@ -918,6 +931,8 @@ bool retro_load_game(const struct retro_game_info* game) {
 
 #ifdef M_CORE_GB
 	if (core->platform(core) == PLATFORM_GB) {
+
+		#ifndef PORTANDROID
 		memset(&cam, 0, sizeof(cam));
 		cam.height = GBCAM_HEIGHT;
 		cam.width = GBCAM_WIDTH;
@@ -926,6 +941,8 @@ bool retro_load_game(const struct retro_game_info* game) {
 		core->setPeripheral(core, mPERIPH_IMAGE_SOURCE, &imageSource);
 
 		environCallback(RETRO_ENVIRONMENT_GET_CAMERA_INTERFACE, &cam);
+		#endif
+		
 		const char* modelName = mCoreConfigGetValue(&core->config, "gb.model");
 		struct GB* gb = core->board;
 
