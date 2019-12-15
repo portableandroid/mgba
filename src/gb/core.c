@@ -40,7 +40,7 @@ static const struct mCoreChannelInfo _GBAudioChannels[] = {
 
 static const struct mCoreMemoryBlock _GBMemoryBlocks[] = {
 	{ -1, "mem", "All", "All", 0, 0x10000, 0x10000, mCORE_MEMORY_VIRTUAL },
-	{ GB_REGION_CART_BANK0, "cart0", "ROM Bank", "Game Pak (32kiB)", GB_BASE_CART_BANK0, GB_SIZE_CART_BANK0 * 2, 0x800000, mCORE_MEMORY_READ | mCORE_MEMORY_MAPPED, 511 },
+	{ GB_REGION_CART_BANK0, "cart0", "ROM Bank", "Game Pak (32kiB)", GB_BASE_CART_BANK0, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 * 2, 0x800000, mCORE_MEMORY_READ | mCORE_MEMORY_MAPPED, 511, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 },
 	{ GB_REGION_VRAM, "vram", "VRAM", "Video RAM (8kiB)", GB_BASE_VRAM, GB_BASE_VRAM + GB_SIZE_VRAM, GB_SIZE_VRAM, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED },
 	{ GB_REGION_EXTERNAL_RAM, "sram", "SRAM", "External RAM (8kiB)", GB_BASE_EXTERNAL_RAM, GB_BASE_EXTERNAL_RAM + GB_SIZE_EXTERNAL_RAM, GB_SIZE_EXTERNAL_RAM * 4, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED, 3 },
 	{ GB_REGION_WORKING_RAM_BANK0, "wram", "WRAM", "Working RAM (8kiB)", GB_BASE_WORKING_RAM_BANK0, GB_BASE_WORKING_RAM_BANK0 + GB_SIZE_WORKING_RAM_BANK0 * 2 , GB_SIZE_WORKING_RAM_BANK0 * 2, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED },
@@ -51,10 +51,10 @@ static const struct mCoreMemoryBlock _GBMemoryBlocks[] = {
 
 static const struct mCoreMemoryBlock _GBCMemoryBlocks[] = {
 	{ -1, "mem", "All", "All", 0, 0x10000, 0x10000, mCORE_MEMORY_VIRTUAL },
-	{ GB_REGION_CART_BANK0, "cart0", "ROM Bank", "Game Pak (32kiB)", GB_BASE_CART_BANK0, GB_SIZE_CART_BANK0 * 2, 0x800000, mCORE_MEMORY_READ | mCORE_MEMORY_MAPPED, 511 },
+	{ GB_REGION_CART_BANK0, "cart0", "ROM Bank", "Game Pak (32kiB)", GB_BASE_CART_BANK0, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 * 2, 0x800000, mCORE_MEMORY_READ | mCORE_MEMORY_MAPPED, 511, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 },
 	{ GB_REGION_VRAM, "vram", "VRAM", "Video RAM (8kiB)", GB_BASE_VRAM, GB_BASE_VRAM + GB_SIZE_VRAM, GB_SIZE_VRAM * 2, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED, 1 },
 	{ GB_REGION_EXTERNAL_RAM, "sram", "SRAM", "External RAM (8kiB)", GB_BASE_EXTERNAL_RAM, GB_BASE_EXTERNAL_RAM + GB_SIZE_EXTERNAL_RAM, GB_SIZE_EXTERNAL_RAM * 4, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED, 3 },
-	{ GB_REGION_WORKING_RAM_BANK0, "wram", "WRAM", "Working RAM (8kiB)", GB_BASE_WORKING_RAM_BANK0, GB_BASE_WORKING_RAM_BANK0 + GB_SIZE_WORKING_RAM_BANK0 * 2, GB_SIZE_WORKING_RAM_BANK0 * 8, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED, 7 },
+	{ GB_REGION_WORKING_RAM_BANK0, "wram", "WRAM", "Working RAM (8kiB)", GB_BASE_WORKING_RAM_BANK0, GB_BASE_WORKING_RAM_BANK0 + GB_SIZE_WORKING_RAM_BANK0 * 2, GB_SIZE_WORKING_RAM_BANK0 * 8, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED, 7, GB_BASE_WORKING_RAM_BANK0 + GB_SIZE_WORKING_RAM_BANK0 },
 	{ GB_BASE_OAM, "oam", "OAM", "OBJ Attribute Memory", GB_BASE_OAM, GB_BASE_OAM + GB_SIZE_OAM, GB_SIZE_OAM, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED },
 	{ GB_BASE_IO, "io", "MMIO", "Memory-Mapped I/O", GB_BASE_IO, GB_BASE_IO + GB_SIZE_IO, GB_SIZE_IO, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED },
 	{ GB_BASE_HRAM, "hram", "HRAM", "High RAM", GB_BASE_HRAM, GB_BASE_HRAM + GB_SIZE_HRAM, GB_SIZE_HRAM, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED },
@@ -138,6 +138,14 @@ static enum mPlatform _GBCorePlatform(const struct mCore* core) {
 	return PLATFORM_GB;
 }
 
+static bool _GBCoreSupportsFeature(const struct mCore* core, enum mCoreFeature feature) {
+	UNUSED(core);
+	switch (feature) {
+	default:
+		return false;
+	}
+}
+
 static void _GBCoreSetSync(struct mCore* core, struct mCoreSync* sync) {
 	struct GB* gb = core->board;
 	gb->sync = sync;
@@ -216,6 +224,59 @@ static void _GBCoreLoadConfig(struct mCore* core, const struct mCoreConfig* conf
 #endif
 }
 
+static void _GBCoreReloadConfigOption(struct mCore* core, const char* option, const struct mCoreConfig* config) {
+	struct GB* gb = core->board;
+	if (!config) {
+		config = &core->config;
+	}
+
+	if (!option) {
+		// Reload options from opts
+		if (core->opts.mute) {
+			gb->audio.masterVolume = 0;
+		} else {
+			gb->audio.masterVolume = core->opts.volume;
+		}
+		gb->video.frameskip = core->opts.frameskip;
+		return;
+	}
+
+	int fakeBool;
+	if (strcmp("mute", option) == 0) {
+		if (mCoreConfigGetIntValue(config, "mute", &fakeBool)) {
+			core->opts.mute = fakeBool;
+
+			if (core->opts.mute) {
+				gb->audio.masterVolume = 0;
+			} else {
+				gb->audio.masterVolume = core->opts.volume;
+			}
+		}
+		return;
+	}
+	if (strcmp("volume", option) == 0) {
+		if (mCoreConfigGetIntValue(config, "volume", &core->opts.volume) && !core->opts.mute) {
+			gb->audio.masterVolume = core->opts.volume;
+		}
+		return;
+	}
+	if (strcmp("frameskip", option) == 0) {
+		if (mCoreConfigGetIntValue(config, "frameskip", &core->opts.frameskip)) {
+			gb->video.frameskip = core->opts.frameskip;
+		}
+		return;
+	}
+	if (strcmp("allowOpposingDirections", option) == 0) {
+		if (config != &core->config) {
+			mCoreConfigCopyValue(&core->config, config, "allowOpposingDirections");
+		}
+		if (mCoreConfigGetIntValue(config, "allowOpposingDirections", &fakeBool)) {
+			gb->allowOpposingDirections = fakeBool;
+		}
+		return;
+	}
+}
+
 static void _GBCoreDesiredVideoDimensions(struct mCore* core, unsigned* width, unsigned* height) {
 	struct GB* gb = core->board;
 	if (gb && (!(gb->model & GB_MODEL_SGB) || !gb->video.sgbBorders)) {
@@ -231,6 +292,11 @@ static void _GBCoreSetVideoBuffer(struct mCore* core, color_t* buffer, size_t st
 	struct GBCore* gbcore = (struct GBCore*) core;
 	gbcore->renderer.outputBuffer = buffer;
 	gbcore->renderer.outputBufferStride = stride;
+}
+
+static void _GBCoreSetVideoGLTex(struct mCore* core, unsigned texid) {
+	UNUSED(core);
+	UNUSED(texid);
 }
 
 static void _GBCoreGetPixels(struct mCore* core, const void** buffer, size_t* stride) {
@@ -866,9 +932,11 @@ static void _GBCoreStartVideoLog(struct mCore* core, struct mVideoLogContext* co
 static void _GBCoreEndVideoLog(struct mCore* core) {
 	struct GBCore* gbcore = (struct GBCore*) core;
 	struct GB* gb = core->board;
-	GBVideoProxyRendererUnshim(&gb->video, &gbcore->proxyRenderer);
-	free(gbcore->proxyRenderer.logger);
-	gbcore->proxyRenderer.logger = NULL;
+	if (gbcore->proxyRenderer.logger) {
+		GBVideoProxyRendererUnshim(&gb->video, &gbcore->proxyRenderer);
+		free(gbcore->proxyRenderer.logger);
+		gbcore->proxyRenderer.logger = NULL;
+	}
 }
 #endif
 
@@ -883,10 +951,13 @@ struct mCore* GBCoreCreate(void) {
 	core->init = _GBCoreInit;
 	core->deinit = _GBCoreDeinit;
 	core->platform = _GBCorePlatform;
+	core->supportsFeature = _GBCoreSupportsFeature;
 	core->setSync = _GBCoreSetSync;
 	core->loadConfig = _GBCoreLoadConfig;
+	core->reloadConfigOption = _GBCoreReloadConfigOption;
 	core->desiredVideoDimensions = _GBCoreDesiredVideoDimensions;
 	core->setVideoBuffer = _GBCoreSetVideoBuffer;
+	core->setVideoGLTex = _GBCoreSetVideoGLTex;
 	core->getPixels = _GBCoreGetPixels;
 	core->putPixels = _GBCorePutPixels;
 	core->getAudioChannel = _GBCoreGetAudioChannel;
@@ -967,6 +1038,7 @@ static void _GBVLPStartFrameCallback(void *context) {
 		GBVideoProxyRendererUnshim(&gb->video, &gbcore->proxyRenderer);
 		mVideoLogContextRewind(gbcore->logContext, core);
 		GBVideoProxyRendererShim(&gb->video, &gbcore->proxyRenderer);
+		gb->earlyExit = true;
 	}
 }
 
@@ -982,6 +1054,7 @@ static bool _GBVLPInit(struct mCore* core) {
 	gbcore->logCallbacks.videoFrameStarted = _GBVLPStartFrameCallback;
 	gbcore->logCallbacks.context = core;
 	core->addCoreCallbacks(core, &gbcore->logCallbacks);
+	core->videoLogger = gbcore->proxyRenderer.logger;
 	return true;
 }
 

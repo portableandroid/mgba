@@ -56,7 +56,11 @@ int mLogFilterLevels(const struct mLogFilter*, int category);
 ATTRIBUTE_FORMAT(printf, 3, 4)
 void mLog(int category, enum mLogLevel level, const char* format, ...);
 
+#ifdef PORTANDROID
+#define mLOG(CATEGORY, LEVEL, ...)
+#else
 #define mLOG(CATEGORY, LEVEL, ...) mLog(_mLOG_CAT_ ## CATEGORY, mLOG_ ## LEVEL, __VA_ARGS__)
+#endif
 
 #define mLOG_DECLARE_CATEGORY(CATEGORY) extern int _mLOG_CAT_ ## CATEGORY;
 #define mLOG_DEFINE_CATEGORY(CATEGORY, NAME, ID) \
@@ -65,7 +69,7 @@ void mLog(int category, enum mLogLevel level, const char* format, ...);
 		_mLOG_CAT_ ## CATEGORY = mLogGenerateCategory(NAME, ID); \
 	}
 
-mLOG_DECLARE_CATEGORY(STATUS)
+MGBA_EXPORT mLOG_DECLARE_CATEGORY(STATUS)
 
 CXX_GUARD_END
 

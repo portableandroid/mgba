@@ -37,6 +37,7 @@ SOURCES_C :=   $(CORE_DIR)/src/arm/arm.c \
 					$(CORE_DIR)/src/arm/decoder-thumb.c \
 					$(CORE_DIR)/src/arm/isa-thumb.c \
 					$(CORE_DIR)/src/arm/isa-arm.c \
+					$(CORE_DIR)/src/core/bitmap-cache.c \
 					$(CORE_DIR)/src/core/cache-set.c \
 					$(CORE_DIR)/src/core/cheats.c \
 					$(CORE_DIR)/src/core/config.c \
@@ -81,6 +82,8 @@ SOURCES_C :=   $(CORE_DIR)/src/arm/arm.c \
 					$(CORE_DIR)/src/gba/memory.c \
 					$(CORE_DIR)/src/gba/overrides.c \
 					$(CORE_DIR)/src/gba/renderers/cache-set.c \
+					$(CORE_DIR)/src/gba/renderers/common.c \
+					$(CORE_DIR)/src/gba/renderers/gl.c \
 					$(CORE_DIR)/src/gba/renderers/software-mode0.c \
 					$(CORE_DIR)/src/gba/renderers/software-obj.c \
 					$(CORE_DIR)/src/gba/renderers/software-bg.c \
@@ -105,6 +108,7 @@ SOURCES_C :=   $(CORE_DIR)/src/arm/arm.c \
 					$(CORE_DIR)/src/util/patch-ips.c \
 					$(CORE_DIR)/src/util/patch-ups.c \
 					$(CORE_DIR)/src/util/string.c \
+					$(CORE_DIR)/src/util/gbk-table.c \
 					$(CORE_DIR)/src/util/table.c \
 					$(CORE_DIR)/src/util/vfs.c \
 					$(CORE_DIR)/src/util/vfs/vfs-mem.c \

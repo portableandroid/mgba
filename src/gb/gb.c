@@ -46,11 +46,6 @@ static void GBStop(struct LR35902Core* cpu);
 
 static void _enableInterrupts(struct mTiming* timing, void* user, uint32_t cyclesLate);
 
-#ifdef FIXED_ROM_BUFFER
-extern uint32_t* romBuffer;
-extern size_t romBufferSize;
-#endif
-
 void GBCreate(struct GB* gb) {
 	gb->d.id = GB_COMPONENT_MAGIC;
 	gb->d.init = GBInit;
@@ -113,14 +108,7 @@ bool GBLoadROM(struct GB* gb, struct VFile* vf) {
 	gb->pristineRomSize = vf->size(vf);
 	vf->seek(vf, 0, SEEK_SET);
 	gb->isPristine = true;
-#ifdef FIXED_ROM_BUFFER
-	if (gb->pristineRomSize <= romBufferSize) {
-		gb->memory.rom = romBuffer;
-		vf->read(vf, romBuffer, gb->pristineRomSize);
-	}
-#else
 	gb->memory.rom = vf->map(vf, gb->pristineRomSize, MAP_READ);
-#endif
 	if (!gb->memory.rom) {
 		return false;
 	}
@@ -137,6 +125,19 @@ bool GBLoadROM(struct GB* gb, struct VFile* vf) {
 
 	// TODO: error check
 	return true;
+}
+
+void GBYankROM(struct GB* gb) {
+	gb->yankedRomSize = gb->memory.romSize;
+	gb->yankedMbc = gb->memory.mbcType;
+	gb->memory.romSize = 0;
+	gb->memory.mbcType = GB_MBC_NONE;
+	gb->memory.sramAccess = false;
+
+	if (gb->cpu) {
+		struct LR35902Core* cpu = gb->cpu;
+		cpu->memory.setActiveRegion(cpu, cpu->pc);
+	}
 }
 
 static void GBSramDeinit(struct GB* gb) {
@@ -186,7 +187,7 @@ void GBResizeSram(struct GB* gb, size_t size) {
 					vf->write(vf, extdataBuffer, vfSize & 0xFF);
 				}
 				gb->memory.sram = vf->map(vf, size, MAP_WRITE);
-				memset(&gb->memory.sram[gb->sramSize], 0xFF, size - gb->sramSize);
+				memset(&gb->memory.sram[vfSize], 0xFF, size - vfSize);
 			} else if (size > gb->sramSize || !gb->memory.sram) {
 				if (gb->memory.sram) {
 					vf->unmap(vf, gb->memory.sram, gb->sramSize);
@@ -414,30 +415,6 @@ void GBReset(struct LR35902Core* cpu) {
 	gb->memory.romBase = gb->memory.rom;
 	GBDetectModel(gb);
 
-	if (gb->biosVf) {
-		if (!GBIsBIOS(gb->biosVf)) {
-			gb->biosVf->close(gb->biosVf);
-			gb->biosVf = NULL;
-		} else {
-			gb->biosVf->seek(gb->biosVf, 0, SEEK_SET);
-			gb->memory.romBase = malloc(GB_SIZE_CART_BANK0);
-			ssize_t size = gb->biosVf->read(gb->biosVf, gb->memory.romBase, GB_SIZE_CART_BANK0);
-			memcpy(&gb->memory.romBase[size], &gb->memory.rom[size], GB_SIZE_CART_BANK0 - size);
-			if (size > 0x100) {
-				memcpy(&gb->memory.romBase[0x100], &gb->memory.rom[0x100], sizeof(struct GBCartridge));
-			}
-
-			cpu->a = 0;
-			cpu->f.packed = 0;
-			cpu->c = 0;
-			cpu->e = 0;
-			cpu->h = 0;
-			cpu->l = 0;
-			cpu->sp = 0;
-			cpu->pc = 0;
-		}
-	}
-
 	cpu->b = 0;
 	cpu->d = 0;
 
@@ -449,6 +426,7 @@ void GBReset(struct LR35902Core* cpu) {
 
 	if (gb->yankedRomSize) {
 		gb->memory.romSize = gb->yankedRomSize;
+		gb->memory.mbcType = gb->yankedMbc;
 		gb->yankedRomSize = 0;
 	}
 
@@ -456,11 +434,30 @@ void GBReset(struct LR35902Core* cpu) {
 	gb->sgbControllers = 0;
 	gb->sgbCurrentController = 0;
 	gb->currentSgbBits = 0;
+	gb->sgbIncrement = false;
 	memset(gb->sgbPacket, 0, sizeof(gb->sgbPacket));
 
 	mTimingClear(&gb->timing);
 
 	GBMemoryReset(gb);
+
+	if (gb->biosVf) {
+		if (!GBIsBIOS(gb->biosVf)) {
+			gb->biosVf->close(gb->biosVf);
+			gb->biosVf = NULL;
+		} else {
+			GBMapBIOS(gb);
+			cpu->a = 0;
+			cpu->f.packed = 0;
+			cpu->c = 0;
+			cpu->e = 0;
+			cpu->h = 0;
+			cpu->l = 0;
+			cpu->sp = 0;
+			cpu->pc = 0;
+		}
+	}
+
 	GBVideoReset(&gb->video);
 	GBTimerReset(&gb->timer);
 	if (!gb->biosVf) {
@@ -563,10 +560,25 @@ void GBSkipBIOS(struct GB* gb) {
 	}
 }
 
+void GBMapBIOS(struct GB* gb) {
+	gb->biosVf->seek(gb->biosVf, 0, SEEK_SET);
+	uint8_t* oldRomBase = gb->memory.romBase;
+	gb->memory.romBase = malloc(GB_SIZE_CART_BANK0);
+	ssize_t size = gb->biosVf->read(gb->biosVf, gb->memory.romBase, GB_SIZE_CART_BANK0);
+	memcpy(&gb->memory.romBase[size], &oldRomBase[size], GB_SIZE_CART_BANK0 - size);
+	if (size > 0x100) {
+		memcpy(&gb->memory.romBase[0x100], &oldRomBase[0x100], sizeof(struct GBCartridge));
+	}
+}
+
 void GBUnmapBIOS(struct GB* gb) {
 	if (gb->memory.romBase < gb->memory.rom || gb->memory.romBase > &gb->memory.rom[gb->memory.romSize - 1]) {
 		free(gb->memory.romBase);
-		gb->memory.romBase = gb->memory.rom;
+		if (gb->memory.mbcType == GB_MMM01) {
+			GBMBCSwitchBank0(gb, gb->memory.romSize / GB_SIZE_CART_BANK0 - 2);
+		} else {
+			GBMBCSwitchBank0(gb, 0);
+		}
 	}
 	// XXX: Force AGB registers for AGB-mode
 	if (gb->model == GB_MODEL_AGB && gb->cpu->pc == 0x100) {
@@ -723,7 +735,7 @@ static void _enableInterrupts(struct mTiming* timing, void* user, uint32_t cycle
 
 void GBHalt(struct LR35902Core* cpu) {
 	struct GB* gb = (struct GB*) cpu->master;
-	if (!(gb->memory.ie & gb->memory.io[REG_IF])) {
+	if (!(gb->memory.ie & gb->memory.io[REG_IF] & 0x1F)) {
 		cpu->cycles = cpu->nextEvent;
 		cpu->halted = true;
 	} else if (gb->model < GB_MODEL_CGB) {
