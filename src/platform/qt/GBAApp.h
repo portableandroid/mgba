@@ -29,7 +29,7 @@ mLOG_DECLARE_CATEGORY(QT);
 namespace QGBA {
 
 class ConfigController;
-class GameController;
+class CoreController;
 class Window;
 
 #ifdef USE_SQLITE3
@@ -52,7 +52,6 @@ Q_OBJECT
 
 public:
 	GBAApp(int& argc, char* argv[], ConfigController*);
-	~GBAApp();
 	static GBAApp* app();
 
 	static QString dataDir();
@@ -79,6 +78,7 @@ protected:
 
 private slots:
 	void finishJob(qint64 jobId);
+	void cleanup();
 
 private:
 	class WorkerJob : public QRunnable {

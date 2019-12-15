@@ -7,7 +7,6 @@
 
 #include <mgba/core/tile-cache.h>
 #include <mgba/internal/gba/gba.h>
-#include <mgba/internal/gba/io.h>
 
 #ifndef DISABLE_THREADING
 
@@ -19,6 +18,7 @@ static THREAD_ENTRY _proxyThread(void* renderer);
 
 static bool _writeData(struct mVideoLogger* logger, const void* data, size_t length);
 static bool _readData(struct mVideoLogger* logger, void* data, size_t length, bool block);
+static void _postEvent(struct mVideoLogger* logger, enum mVideoLoggerEvent);
 
 static void _lock(struct mVideoLogger* logger);
 static void _unlock(struct mVideoLogger* logger);
@@ -39,6 +39,7 @@ void mVideoThreadProxyCreate(struct mVideoThreadProxy* renderer) {
 
 	renderer->d.writeData = _writeData;
 	renderer->d.readData = _readData;
+	renderer->d.postEvent = _postEvent;
 }
 
 void mVideoThreadProxyInit(struct mVideoLogger* logger) {
@@ -77,8 +78,9 @@ void mVideoThreadProxyDeinit(struct mVideoLogger* logger) {
 	}
 	MutexUnlock(&proxyRenderer->mutex);
 	if (waiting) {
-		ThreadJoin(proxyRenderer->thread);
+		ThreadJoin(&proxyRenderer->thread);
 	}
+	RingFIFODeinit(&proxyRenderer->dirtyQueue);
 	ConditionDeinit(&proxyRenderer->fromThreadCond);
 	ConditionDeinit(&proxyRenderer->toThreadCond);
 	MutexDeinit(&proxyRenderer->mutex);
@@ -92,7 +94,7 @@ void _proxyThreadRecover(struct mVideoThreadProxy* proxyRenderer) {
 	}
 	RingFIFOClear(&proxyRenderer->dirtyQueue);
 	MutexUnlock(&proxyRenderer->mutex);
-	ThreadJoin(proxyRenderer->thread);
+	ThreadJoin(&proxyRenderer->thread);
 	proxyRenderer->threadState = PROXY_THREAD_IDLE;
 	ThreadCreate(&proxyRenderer->thread, _proxyThread, proxyRenderer);
 }
@@ -122,13 +124,21 @@ static bool _readData(struct mVideoLogger* logger, void* data, size_t length, bo
 		if (!block || read) {
 			break;
 		}
-		mLOG(GBA_VIDEO, DEBUG, "Proxy thread can't read VRAM. CPU thread asleep?");
+		mLOG(GBA_VIDEO, DEBUG, "Can't read %"PRIz"u bytes. CPU thread asleep?", length);
 		MutexLock(&proxyRenderer->mutex);
 		ConditionWake(&proxyRenderer->fromThreadCond);
 		ConditionWait(&proxyRenderer->toThreadCond, &proxyRenderer->mutex);
 		MutexUnlock(&proxyRenderer->mutex);
 	}
 	return read;
+}
+
+static void _postEvent(struct mVideoLogger* logger, enum mVideoLoggerEvent event) {
+	struct mVideoThreadProxy* proxyRenderer = (struct mVideoThreadProxy*) logger;
+	MutexLock(&proxyRenderer->mutex);
+	proxyRenderer->event = event;
+	ConditionWake(&proxyRenderer->toThreadCond);
+	MutexUnlock(&proxyRenderer->mutex);
 }
 
 static void _lock(struct mVideoLogger* logger) {
@@ -143,10 +153,12 @@ static void _wait(struct mVideoLogger* logger) {
 		_proxyThreadRecover(proxyRenderer);
 		return;
 	}
-	while (proxyRenderer->threadState == PROXY_THREAD_BUSY) {
+	MutexLock(&proxyRenderer->mutex);
+	while (RingFIFOSize(&proxyRenderer->dirtyQueue)) {
 		ConditionWake(&proxyRenderer->toThreadCond);
 		ConditionWait(&proxyRenderer->fromThreadCond, &proxyRenderer->mutex);
 	}
+	MutexUnlock(&proxyRenderer->mutex);
 }
 
 static void _unlock(struct mVideoLogger* logger) {
@@ -172,13 +184,18 @@ static THREAD_ENTRY _proxyThread(void* logger) {
 			break;
 		}
 		proxyRenderer->threadState = PROXY_THREAD_BUSY;
-		MutexUnlock(&proxyRenderer->mutex);
-		if (!mVideoLoggerRendererRun(&proxyRenderer->d, false)) {
-			// FIFO was corrupted
-			proxyRenderer->threadState = PROXY_THREAD_STOPPED;
-			mLOG(GBA_VIDEO, ERROR, "Proxy thread queue got corrupted!");
+		if (proxyRenderer->event) {
+			proxyRenderer->d.handleEvent(&proxyRenderer->d, proxyRenderer->event);
+			proxyRenderer->event = 0;
+		} else {
+			MutexUnlock(&proxyRenderer->mutex);
+			if (!mVideoLoggerRendererRun(&proxyRenderer->d, false)) {
+				// FIFO was corrupted
+				proxyRenderer->threadState = PROXY_THREAD_STOPPED;
+				mLOG(GBA_VIDEO, ERROR, "Proxy thread queue got corrupted!");
+			}
+			MutexLock(&proxyRenderer->mutex);
 		}
-		MutexLock(&proxyRenderer->mutex);
 		ConditionWake(&proxyRenderer->fromThreadCond);
 		if (proxyRenderer->threadState != PROXY_THREAD_STOPPED) {
 			proxyRenderer->threadState = PROXY_THREAD_IDLE;

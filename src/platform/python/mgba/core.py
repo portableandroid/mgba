@@ -3,9 +3,11 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-from ._pylib import ffi, lib
-from . import tile, createCallback
+from ._pylib import ffi, lib  # pylint: disable=no-name-in-module
+from . import tile, audio
 from cached_property import cached_property
+from functools import wraps
+
 
 def find(path):
     core = lib.mCoreFind(path.encode('UTF-8'))
@@ -13,82 +15,106 @@ def find(path):
         return None
     return Core._init(core)
 
-def findVF(vf):
-    core = lib.mCoreFindVF(vf.handle)
+
+def find_vf(vfile):
+    core = lib.mCoreFindVF(vfile.handle)
     if core == ffi.NULL:
         return None
     return Core._init(core)
 
-def loadPath(path):
+
+def load_path(path):
     core = find(path)
-    if not core or not core.loadFile(path):
+    if not core or not core.load_file(path):
         return None
     return core
 
-def loadVF(vf):
-    core = findVF(vf)
-    if not core or not core.loadROM(vf):
+
+def load_vf(vfile):
+    core = find_vf(vfile)
+    if not core or not core.load_rom(vfile):
         return None
     return core
 
-def needsReset(f):
+
+def needs_reset(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if not self._wasReset:
+        if not self._was_reset:
             raise RuntimeError("Core must be reset first")
-        return f(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
     return wrapper
 
-def protected(f):
+
+def protected(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self._protected:
             raise RuntimeError("Core is protected")
-        return f(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
     return wrapper
 
-@ffi.def_extern()
-def _mCorePythonCallbacksVideoFrameStarted(user):
-    context = ffi.from_handle(user)
-    context._videoFrameStarted()
 
 @ffi.def_extern()
-def _mCorePythonCallbacksVideoFrameEnded(user):
+def _mCorePythonCallbacksVideoFrameStarted(user):  # pylint: disable=invalid-name
     context = ffi.from_handle(user)
-    context._videoFrameEnded()
+    context._video_frame_started()
+
 
 @ffi.def_extern()
-def _mCorePythonCallbacksCoreCrashed(user):
+def _mCorePythonCallbacksVideoFrameEnded(user):  # pylint: disable=invalid-name
     context = ffi.from_handle(user)
-    context._coreCrashed()
+    context._video_frame_ended()
+
 
 @ffi.def_extern()
-def _mCorePythonCallbacksSleep(user):
+def _mCorePythonCallbacksCoreCrashed(user):  # pylint: disable=invalid-name
+    context = ffi.from_handle(user)
+    context._core_crashed()
+
+
+@ffi.def_extern()
+def _mCorePythonCallbacksSleep(user):  # pylint: disable=invalid-name
     context = ffi.from_handle(user)
     context._sleep()
+
+
+@ffi.def_extern()
+def _mCorePythonCallbacksKeysRead(user):  # pylint: disable=invalid-name
+    context = ffi.from_handle(user)
+    context._keys_read()
+
 
 class CoreCallbacks(object):
     def __init__(self):
         self._handle = ffi.new_handle(self)
-        self.videoFrameStarted = []
-        self.videoFrameEnded = []
-        self.coreCrashed = []
+        self.video_frame_started = []
+        self.video_frame_ended = []
+        self.core_crashed = []
         self.sleep = []
+        self.keys_read = []
         self.context = lib.mCorePythonCallbackCreate(self._handle)
 
-    def _videoFrameStarted(self):
-        for cb in self.videoFrameStarted:
-            cb()
+    def _video_frame_started(self):
+        for callback in self.video_frame_started:
+            callback()
 
-    def _videoFrameEnded(self):
-        for cb in self.videoFrameEnded:
-            cb()
+    def _video_frame_ended(self):
+        for callback in self.video_frame_ended:
+            callback()
 
-    def _coreCrashed(self):
-        for cb in self.coreCrashed:
-            cb()
+    def _core_crashed(self):
+        for callback in self.core_crashed:
+            callback()
 
     def _sleep(self):
-        for cb in self.sleep:
-            cb()
+        for callback in self.sleep:
+            callback()
+
+    def _keys_read(self):
+        for callback in self.keys_read:
+            callback()
+
 
 class Core(object):
     if hasattr(lib, 'PLATFORM_GBA'):
@@ -99,36 +125,36 @@ class Core(object):
 
     def __init__(self, native):
         self._core = native
-        self._wasReset = False
+        self._was_reset = False
         self._protected = False
         self._callbacks = CoreCallbacks()
         self._core.addCoreCallbacks(self._core, self._callbacks.context)
         self.config = Config(ffi.addressof(native.config))
 
     def __del__(self):
-        self._wasReset = False
+        self._was_reset = False
 
     @cached_property
-    def graphicsCache(self):
-        if not self._wasReset:
+    def graphics_cache(self):
+        if not self._was_reset:
             raise RuntimeError("Core must be reset first")
         return tile.CacheSet(self)
 
     @cached_property
     def tiles(self):
-        t = []
-        ts = ffi.addressof(self.graphicsCache.cache.tiles)
-        for i in range(lib.mTileCacheSetSize(ts)):
-            t.append(tile.TileView(lib.mTileCacheSetGetPointer(ts, i)))
-        return t
+        tiles = []
+        native_tiles = ffi.addressof(self.graphics_cache.cache.tiles)
+        for i in range(lib.mTileCacheSetSize(native_tiles)):
+            tiles.append(tile.TileView(lib.mTileCacheSetGetPointer(native_tiles, i)))
+        return tiles
 
     @cached_property
     def maps(self):
-        m = []
-        ms = ffi.addressof(self.graphicsCache.cache.maps)
-        for i in range(lib.mMapCacheSetSize(ms)):
-            m.append(tile.MapView(lib.mMapCacheSetGetPointer(ms, i)))
-        return m
+        maps = []
+        native_maps = ffi.addressof(self.graphics_cache.cache.maps)
+        for i in range(lib.mMapCacheSetSize(native_maps)):
+            maps.append(tile.MapView(lib.mMapCacheSetGetPointer(native_maps, i)))
+        return maps
 
     @classmethod
     def _init(cls, native):
@@ -150,73 +176,125 @@ class Core(object):
         return Core(core)
 
     def _load(self):
-        self._wasReset = True
+        self._was_reset = True
 
-    def loadFile(self, path):
+    @protected
+    def load_file(self, path):
         return bool(lib.mCoreLoadFile(self._core, path.encode('UTF-8')))
 
-    def isROM(self, vf):
-        return bool(self._core.isROM(vf.handle))
+    def is_rom(self, vfile):
+        return bool(self._core.isROM(vfile.handle))
 
-    def loadROM(self, vf):
-        return bool(self._core.loadROM(self._core, vf.handle))
+    @protected
+    def load_rom(self, vfile):
+        return bool(self._core.loadROM(self._core, vfile.handle))
 
-    def loadBIOS(self, vf, id=0):
-        return bool(self._core.loadBIOS(self._core, vf.handle, id))
+    @protected
+    def load_bios(self, vfile, id=0):
+        res = bool(self._core.loadBIOS(self._core, vfile.handle, id))
+        if res:
+            vfile._claimed = True
+        return res
 
-    def loadSave(self, vf):
-        return bool(self._core.loadSave(self._core, vf.handle))
+    @protected
+    def load_save(self, vfile):
+        res = bool(self._core.loadSave(self._core, vfile.handle))
+        if res:
+            vfile._claimed = True
+        return res
 
-    def loadTemporarySave(self, vf):
-        return bool(self._core.loadTemporarySave(self._core, vf.handle))
+    @protected
+    def load_temporary_save(self, vfile):
+        return bool(self._core.loadTemporarySave(self._core, vfile.handle))
 
-    def loadPatch(self, vf):
-        return bool(self._core.loadPatch(self._core, vf.handle))
+    @protected
+    def load_patch(self, vfile):
+        return bool(self._core.loadPatch(self._core, vfile.handle))
 
-    def loadConfig(self, config):
+    @protected
+    def load_config(self, config):
         lib.mCoreLoadForeignConfig(self._core, config._native)
 
-    def autoloadSave(self):
+    @protected
+    def autoload_save(self):
         return bool(lib.mCoreAutoloadSave(self._core))
 
-    def autoloadPatch(self):
+    @protected
+    def autoload_patch(self):
         return bool(lib.mCoreAutoloadPatch(self._core))
 
-    def autoloadCheats(self):
+    @protected
+    def autoload_cheats(self):
         return bool(lib.mCoreAutoloadCheats(self._core))
 
+    @property
     def platform(self):
         return self._core.platform(self._core)
 
-    def desiredVideoDimensions(self):
+    @protected
+    def desired_video_dimensions(self):
         width = ffi.new("unsigned*")
         height = ffi.new("unsigned*")
         self._core.desiredVideoDimensions(self._core, width, height)
         return width[0], height[0]
 
-    def setVideoBuffer(self, image):
+    @protected
+    def set_video_buffer(self, image):
         self._core.setVideoBuffer(self._core, image.buffer, image.stride)
 
+    @protected
+    def set_audio_buffer_size(self, size):
+        self._core.setAudioBufferSize(self._core, size)
+
+    @property
+    def audio_buffer_size(self):
+        return self._core.getAudioBufferSize(self._core)
+
+    @protected
+    def get_audio_channels(self):
+        return audio.StereoBuffer(self.get_audio_channel(0), self.get_audio_channel(1));
+
+    @protected
+    def get_audio_channel(self, channel):
+        return audio.Buffer(self._core.getAudioChannel(self._core, channel), self.frequency)
+
+    @protected
     def reset(self):
         self._core.reset(self._core)
         self._load()
 
-    @needsReset
+    @needs_reset
     @protected
-    def runFrame(self):
+    def run_frame(self):
         self._core.runFrame(self._core)
 
-    @needsReset
+    @needs_reset
     @protected
-    def runLoop(self):
+    def run_loop(self):
         self._core.runLoop(self._core)
 
-    @needsReset
+    @needs_reset
+    @protected
     def step(self):
         self._core.step(self._core)
 
+    @needs_reset
+    @protected
+    def load_raw_state(self, state):
+        if len(state) < self._core.stateSize(self._core):
+            return False
+        return self._core.loadState(self._core, state)
+
+    @needs_reset
+    @protected
+    def save_raw_state(self):
+        state = ffi.new('unsigned char[%i]' % self._core.stateSize(self._core))
+        if self._core.saveState(self._core, state):
+            return state
+        return None
+
     @staticmethod
-    def _keysToInt(*args, **kwargs):
+    def _keys_to_int(*args, **kwargs):
         keys = 0
         if 'raw' in kwargs:
             keys = kwargs['raw']
@@ -224,22 +302,25 @@ class Core(object):
             keys |= 1 << key
         return keys
 
-    def setKeys(self, *args, **kwargs):
-        self._core.setKeys(self._core, self._keysToInt(*args, **kwargs))
+    @protected
+    def set_keys(self, *args, **kwargs):
+        self._core.setKeys(self._core, self._keys_to_int(*args, **kwargs))
 
-    def addKeys(self, *args, **kwargs):
-        self._core.addKeys(self._core, self._keysToInt(*args, **kwargs))
+    @protected
+    def add_keys(self, *args, **kwargs):
+        self._core.addKeys(self._core, self._keys_to_int(*args, **kwargs))
 
-    def clearKeys(self, *args, **kwargs):
-        self._core.clearKeys(self._core, self._keysToInt(*args, **kwargs))
+    @protected
+    def clear_keys(self, *args, **kwargs):
+        self._core.clearKeys(self._core, self._keys_to_int(*args, **kwargs))
 
     @property
-    @needsReset
-    def frameCounter(self):
+    @needs_reset
+    def frame_counter(self):
         return self._core.frameCounter(self._core)
 
     @property
-    def frameCycles(self):
+    def frame_cycles(self):
         return self._core.frameCycles(self._core)
 
     @property
@@ -247,23 +328,24 @@ class Core(object):
         return self._core.frequency(self._core)
 
     @property
-    def gameTitle(self):
+    def game_title(self):
         title = ffi.new("char[16]")
         self._core.getGameTitle(self._core, title)
         return ffi.string(title, 16).decode("ascii")
 
     @property
-    def gameCode(self):
+    def game_code(self):
         code = ffi.new("char[12]")
         self._core.getGameCode(self._core, code)
         return ffi.string(code, 12).decode("ascii")
 
-    def addFrameCallback(self, cb):
-        self._callbacks.videoFrameEnded.append(cb)
+    def add_frame_callback(self, callback):
+        self._callbacks.video_frame_ended.append(callback)
 
     @property
     def crc32(self):
         return self._native.romCrc32
+
 
 class ICoreOwner(object):
     def claim(self):
@@ -281,6 +363,7 @@ class ICoreOwner(object):
         self.core._protected = False
         self.release()
 
+
 class IRunner(object):
     def pause(self):
         raise NotImplementedError
@@ -288,14 +371,17 @@ class IRunner(object):
     def unpause(self):
         raise NotImplementedError
 
-    def useCore(self):
+    def use_core(self):
         raise NotImplementedError
 
-    def isRunning(self):
+    @property
+    def running(self):
         raise NotImplementedError
 
-    def isPaused(self):
+    @property
+    def paused(self):
         raise NotImplementedError
+
 
 class Config(object):
     def __init__(self, native=None, port=None, defaults={}):

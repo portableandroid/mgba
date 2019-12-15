@@ -47,6 +47,7 @@ void GBASavedataInit(struct GBASavedata* savedata, struct VFile* vf) {
 	savedata->vf = vf;
 	savedata->realVf = vf;
 	savedata->mapMode = MAP_WRITE;
+	savedata->maskWriteback = false;
 	savedata->dirty = 0;
 	savedata->dirtAge = 0;
 	savedata->dust.name = "GBA Savedata Settling";
@@ -76,6 +77,9 @@ void GBASavedataDeinit(struct GBASavedata* savedata) {
 		case SAVEDATA_EEPROM:
 			mappedMemoryFree(savedata->data, SIZE_CART_EEPROM);
 			break;
+		case SAVEDATA_EEPROM512:
+			mappedMemoryFree(savedata->data, SIZE_CART_EEPROM512);
+			break;
 		case SAVEDATA_FORCE_NONE:
 		case SAVEDATA_AUTODETECT:
 			break;
@@ -87,7 +91,11 @@ void GBASavedataDeinit(struct GBASavedata* savedata) {
 
 void GBASavedataMask(struct GBASavedata* savedata, struct VFile* vf, bool writeback) {
 	enum SavedataType type = savedata->type;
+	struct VFile* oldVf = savedata->vf;
 	GBASavedataDeinit(savedata);
+	if (oldVf && oldVf != savedata->realVf) {
+		oldVf->close(oldVf);
+	}
 	savedata->vf = vf;
 	savedata->mapMode = MAP_READ;
 	savedata->maskWriteback = writeback;
@@ -95,7 +103,7 @@ void GBASavedataMask(struct GBASavedata* savedata, struct VFile* vf, bool writeb
 }
 
 void GBASavedataUnmask(struct GBASavedata* savedata) {
-	if (savedata->vf == savedata->realVf) {
+	if (!savedata->realVf || savedata->vf == savedata->realVf) {
 		return;
 	}
 	enum SavedataType type = savedata->type;
@@ -122,6 +130,8 @@ bool GBASavedataClone(struct GBASavedata* savedata, struct VFile* out) {
 			return out->write(out, savedata->data, SIZE_CART_FLASH1M) == SIZE_CART_FLASH1M;
 		case SAVEDATA_EEPROM:
 			return out->write(out, savedata->data, SIZE_CART_EEPROM) == SIZE_CART_EEPROM;
+		case SAVEDATA_EEPROM512:
+			return out->write(out, savedata->data, SIZE_CART_EEPROM512) == SIZE_CART_EEPROM512;
 		case SAVEDATA_AUTODETECT:
 		case SAVEDATA_FORCE_NONE:
 			return true;
@@ -147,7 +157,9 @@ size_t GBASavedataSize(const struct GBASavedata* savedata) {
 	case SAVEDATA_FLASH1M:
 		return SIZE_CART_FLASH1M;
 	case SAVEDATA_EEPROM:
-		return (savedata->vf && savedata->vf->size(savedata->vf) == SIZE_CART_EEPROM512) ? SIZE_CART_EEPROM512 : SIZE_CART_EEPROM;
+		return SIZE_CART_EEPROM;
+	case SAVEDATA_EEPROM512:
+		return SIZE_CART_EEPROM512;
 	case SAVEDATA_FORCE_NONE:
 		return 0;
 	case SAVEDATA_AUTODETECT:
@@ -194,10 +206,17 @@ bool GBASavedataLoad(struct GBASavedata* savedata, struct VFile* in) {
 }
 
 void GBASavedataForceType(struct GBASavedata* savedata, enum SavedataType type) {
+	if (savedata->type == type) {
+		return;
+	}
 	if (savedata->type != SAVEDATA_AUTODETECT) {
 		struct VFile* vf = savedata->vf;
+		int mapMode = savedata->mapMode;
+		bool maskWriteback = savedata->maskWriteback;
 		GBASavedataDeinit(savedata);
 		GBASavedataInit(savedata, vf);
+		savedata->mapMode = mapMode;
+		savedata->maskWriteback = maskWriteback;
 	}
 	switch (type) {
 	case SAVEDATA_FLASH512:
@@ -206,6 +225,8 @@ void GBASavedataForceType(struct GBASavedata* savedata, enum SavedataType type) 
 		GBASavedataInitFlash(savedata);
 		break;
 	case SAVEDATA_EEPROM:
+	case SAVEDATA_EEPROM512:
+		savedata->type = type;
 		GBASavedataInitEEPROM(savedata);
 		break;
 	case SAVEDATA_SRAM:
@@ -251,22 +272,23 @@ void GBASavedataInitFlash(struct GBASavedata* savedata) {
 
 void GBASavedataInitEEPROM(struct GBASavedata* savedata) {
 	if (savedata->type == SAVEDATA_AUTODETECT) {
-		savedata->type = SAVEDATA_EEPROM;
-	} else {
+		savedata->type = SAVEDATA_EEPROM512;
+	} else if (savedata->type != SAVEDATA_EEPROM512 && savedata->type != SAVEDATA_EEPROM) {
 		mLOG(GBA_SAVE, WARN, "Can't re-initialize savedata");
 		return;
 	}
 	int32_t eepromSize = SIZE_CART_EEPROM512;
+	if (savedata->type == SAVEDATA_EEPROM) {
+		eepromSize = SIZE_CART_EEPROM;
+	}
 	off_t end;
 	if (!savedata->vf) {
 		end = 0;
 		savedata->data = anonymousMemoryMap(SIZE_CART_EEPROM);
 	} else {
 		end = savedata->vf->size(savedata->vf);
-		if (end < SIZE_CART_EEPROM512) {
-			savedata->vf->truncate(savedata->vf, SIZE_CART_EEPROM512);
-		} else if (end > SIZE_CART_EEPROM512) {
-			eepromSize = SIZE_CART_EEPROM;
+		if (end < eepromSize) {
+			savedata->vf->truncate(savedata->vf, eepromSize);
 		}
 		savedata->data = savedata->vf->map(savedata->vf, eepromSize, savedata->mapMode);
 	}
@@ -408,13 +430,21 @@ static void _ensureEeprom(struct GBASavedata* savedata, uint32_t size) {
 	if (size < SIZE_CART_EEPROM512) {
 		return;
 	}
-	if (!savedata->vf || savedata->vf->size(savedata->vf) > SIZE_CART_EEPROM512) {
+	if (savedata->type == SAVEDATA_EEPROM) {
+		return;
+	}
+	savedata->type = SAVEDATA_EEPROM;
+	if (!savedata->vf) {
 		return;
 	}
 	savedata->vf->unmap(savedata->vf, savedata->data, SIZE_CART_EEPROM512);
-	savedata->vf->truncate(savedata->vf, SIZE_CART_EEPROM);
-	savedata->data = savedata->vf->map(savedata->vf, SIZE_CART_EEPROM, savedata->mapMode);
-	memset(&savedata->data[SIZE_CART_EEPROM512], 0xFF, SIZE_CART_EEPROM - SIZE_CART_EEPROM512);
+	if (savedata->vf->size(savedata->vf) < SIZE_CART_EEPROM) {
+		savedata->vf->truncate(savedata->vf, SIZE_CART_EEPROM);
+		savedata->data = savedata->vf->map(savedata->vf, SIZE_CART_EEPROM, savedata->mapMode);
+		memset(&savedata->data[SIZE_CART_EEPROM512], 0xFF, SIZE_CART_EEPROM - SIZE_CART_EEPROM512);
+	} else {
+		savedata->data = savedata->vf->map(savedata->vf, SIZE_CART_EEPROM, savedata->mapMode);
+	}
 }
 
 void GBASavedataWriteEEPROM(struct GBASavedata* savedata, uint16_t value, uint32_t writeSize) {
@@ -574,7 +604,7 @@ void _flashSwitchBank(struct GBASavedata* savedata, int bank) {
 		savedata->type = SAVEDATA_FLASH1M;
 		if (savedata->vf) {
 			savedata->vf->unmap(savedata->vf, savedata->data, SIZE_CART_FLASH512);
-			if (savedata->vf->size(savedata->vf) == SIZE_CART_FLASH512) {
+			if (savedata->vf->size(savedata->vf) < SIZE_CART_FLASH1M) {
 				savedata->vf->truncate(savedata->vf, SIZE_CART_FLASH1M);
 				savedata->data = savedata->vf->map(savedata->vf, SIZE_CART_FLASH1M, MAP_WRITE);
 				memset(&savedata->data[SIZE_CART_FLASH512], 0xFF, SIZE_CART_FLASH512);

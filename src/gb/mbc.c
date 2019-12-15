@@ -9,7 +9,10 @@
 #include <mgba/internal/lr35902/lr35902.h>
 #include <mgba/internal/gb/gb.h>
 #include <mgba/internal/gb/memory.h>
+#include <mgba-util/crc32.h>
 #include <mgba-util/vfs.h>
+
+const uint32_t GB_LOGO_HASH = 0x46195417;
 
 mLOG_DEFINE_CATEGORY(GB_MBC, "GB MBC", "gb.mbc");
 
@@ -27,9 +30,12 @@ static void _GBMBC3(struct GB*, uint16_t address, uint8_t value);
 static void _GBMBC5(struct GB*, uint16_t address, uint8_t value);
 static void _GBMBC6(struct GB*, uint16_t address, uint8_t value);
 static void _GBMBC7(struct GB*, uint16_t address, uint8_t value);
+static void _GBMMM01(struct GB*, uint16_t address, uint8_t value);
+static void _GBHuC1(struct GB*, uint16_t address, uint8_t value);
 static void _GBHuC3(struct GB*, uint16_t address, uint8_t value);
 static void _GBPocketCam(struct GB* gb, uint16_t address, uint8_t value);
 static void _GBTAMA5(struct GB* gb, uint16_t address, uint8_t value);
+static void _GBWisdomTree(struct GB* gb, uint16_t address, uint8_t value);
 
 static uint8_t _GBMBC2Read(struct GBMemory*, uint16_t address);
 static uint8_t _GBMBC6Read(struct GBMemory*, uint16_t address);
@@ -56,7 +62,7 @@ void GBMBCSwitchBank(struct GB* gb, int bank) {
 }
 
 void GBMBCSwitchBank0(struct GB* gb, int bank) {
-	size_t bankStart = bank * GB_SIZE_CART_BANK0 << gb->memory.mbcState.mbc1.multicartStride;
+	size_t bankStart = bank * GB_SIZE_CART_BANK0;
 	if (bankStart + GB_SIZE_CART_BANK0 > gb->memory.romSize) {
 		mLOG(GB_MBC, GAME_ERROR, "Attempting to switch to an invalid ROM bank: %0X", bank);
 		bankStart &= (gb->memory.romSize - 1);
@@ -90,18 +96,51 @@ void GBMBCSwitchHalfBank(struct GB* gb, int half, int bank) {
 }
 
 static bool _isMulticart(const uint8_t* mem) {
-	bool success = true;
+	bool success;
 	struct VFile* vf;
 
 	vf = VFileFromConstMemory(&mem[GB_SIZE_CART_BANK0 * 0x10], 1024);
-	success = success && GBIsROM(vf);
+	success = GBIsROM(vf);
 	vf->close(vf);
+
+	if (!success) {
+		return false;
+	}
 
 	vf = VFileFromConstMemory(&mem[GB_SIZE_CART_BANK0 * 0x20], 1024);
-	success = success && GBIsROM(vf);
+	success = GBIsROM(vf);
 	vf->close(vf);
 
+	if (!success) {
+		vf = VFileFromConstMemory(&mem[GB_SIZE_CART_BANK0 * 0x30], 1024);
+		success = GBIsROM(vf);
+		vf->close(vf);
+	}
+	
 	return success;
+}
+
+static bool _isWisdomTree(const uint8_t* mem, size_t size) {
+	size_t i;
+	for (i = 0x134; i < 0x14C; i += 4) {
+		if (*(uint32_t*) &mem[i] != 0) {
+			return false;
+		}
+	}
+	for (i = 0xF0; i < 0x100; i += 4) {
+		if (*(uint32_t*) &mem[i] != 0) {
+			return false;
+		}
+	}
+	if (mem[0x14D] != 0xE7) {
+		return false;
+	}
+	for (i = 0x300; i < size - 11; ++i) {
+		if (memcmp(&mem[i], "WISDOM", 6) == 0 && memcmp(&mem[i + 7], "TREE", 4) == 0) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void GBMBCSwitchSramBank(struct GB* gb, int bank) {
@@ -134,6 +173,12 @@ void GBMBCSwitchSramHalfBank(struct GB* gb, int half, int bank) {
 void GBMBCInit(struct GB* gb) {
 	const struct GBCartridge* cart = (const struct GBCartridge*) &gb->memory.rom[0x100];
 	if (gb->memory.rom) {
+		if (gb->memory.romSize >= 0x8000) {
+			const struct GBCartridge* cartFooter = (const struct GBCartridge*) &gb->memory.rom[gb->memory.romSize - 0x7F00];
+			if (doCrc32(cartFooter->logo, sizeof(cartFooter->logo)) == GB_LOGO_HASH && cartFooter->type >= 0x0B && cartFooter->type <= 0x0D) {
+				cart = cartFooter;
+			}
+		}
 		switch (cart->ramSize) {
 		case 0:
 			gb->sramSize = 0;
@@ -159,6 +204,11 @@ void GBMBCInit(struct GB* gb) {
 		if (gb->memory.mbcType == GB_MBC_AUTODETECT) {
 			switch (cart->type) {
 			case 0:
+				if (_isWisdomTree(gb->memory.rom, gb->memory.romSize)) {
+					gb->memory.mbcType = GB_UNL_WISDOM_TREE;
+					break;
+				}
+				// Fall through
 			case 8:
 			case 9:
 				gb->memory.mbcType = GB_MBC_NONE;
@@ -167,15 +217,15 @@ void GBMBCInit(struct GB* gb) {
 			case 2:
 			case 3:
 				gb->memory.mbcType = GB_MBC1;
-				if (gb->memory.romSize >= GB_SIZE_CART_BANK0 * 0x31 && _isMulticart(gb->memory.rom)) {
-					gb->memory.mbcState.mbc1.multicartStride = 4;
-				} else {
-					gb->memory.mbcState.mbc1.multicartStride = 5;
-				}
 				break;
 			case 5:
 			case 6:
 				gb->memory.mbcType = GB_MBC2;
+				break;
+			case 0x0B:
+			case 0x0C:
+			case 0x0D:
+				gb->memory.mbcType = GB_MMM01;
 				break;
 			case 0x0F:
 			case 0x10:
@@ -229,6 +279,11 @@ void GBMBCInit(struct GB* gb) {
 		break;
 	case GB_MBC1:
 		gb->memory.mbcWrite = _GBMBC1;
+		if (gb->memory.romSize >= GB_SIZE_CART_BANK0 * 0x31 && _isMulticart(gb->memory.rom)) {
+			gb->memory.mbcState.mbc1.multicartStride = 4;
+		} else {
+			gb->memory.mbcState.mbc1.multicartStride = 5;
+		}
 		break;
 	case GB_MBC2:
 		gb->memory.mbcWrite = _GBMBC2;
@@ -255,12 +310,10 @@ void GBMBCInit(struct GB* gb) {
 		gb->sramSize = 0x100;
 		break;
 	case GB_MMM01:
-		mLOG(GB_MBC, WARN, "unimplemented MBC: MMM01");
-		gb->memory.mbcWrite = _GBMBC1;
+		gb->memory.mbcWrite = _GBMMM01;
 		break;
 	case GB_HuC1:
-		mLOG(GB_MBC, WARN, "unimplemented MBC: HuC-1");
-		gb->memory.mbcWrite = _GBMBC1;
+		gb->memory.mbcWrite = _GBHuC1;
 		break;
 	case GB_HuC3:
 		gb->memory.mbcWrite = _GBHuC3;
@@ -285,6 +338,9 @@ void GBMBCInit(struct GB* gb) {
 		if (gb->memory.cam && gb->memory.cam->startRequestImage) {
 			gb->memory.cam->startRequestImage(gb->memory.cam, GBCAM_WIDTH, GBCAM_HEIGHT, mCOLOR_ANY);
 		}
+		break;
+	case GB_UNL_WISDOM_TREE:
+		gb->memory.mbcWrite = _GBWisdomTree;
 		break;
 	}
 
@@ -393,7 +449,7 @@ void _GBMBC1(struct GB* gb, uint16_t address, uint8_t value) {
 	case 0x2:
 		bank &= 3;
 		if (memory->mbcState.mbc1.mode) {
-			GBMBCSwitchBank0(gb, bank);
+			GBMBCSwitchBank0(gb, bank << gb->memory.mbcState.mbc1.multicartStride);
 			GBMBCSwitchSramBank(gb, bank);
 		}
 		GBMBCSwitchBank(gb, (bank << memory->mbcState.mbc1.multicartStride) | (memory->currentBank & (stride - 1)));
@@ -401,7 +457,7 @@ void _GBMBC1(struct GB* gb, uint16_t address, uint8_t value) {
 	case 0x3:
 		memory->mbcState.mbc1.mode = value & 1;
 		if (memory->mbcState.mbc1.mode) {
-			GBMBCSwitchBank0(gb, memory->currentBank >> memory->mbcState.mbc1.multicartStride);
+			GBMBCSwitchBank0(gb, memory->currentBank & ~((1 << memory->mbcState.mbc1.multicartStride) - 1));
 		} else {
 			GBMBCSwitchBank0(gb, 0);
 			GBMBCSwitchSramBank(gb, 0);
@@ -446,6 +502,7 @@ void _GBMBC2(struct GB* gb, uint16_t address, uint8_t value) {
 		address &= 0x1FF;
 		memory->sramBank[(address >> 1)] &= 0xF0 >> shift;
 		memory->sramBank[(address >> 1)] |= (value & 0xF) << shift;
+		break;
 	default:
 		// TODO
 		mLOG(GB_MBC, STUB, "MBC2 unknown address: %04X:%02X", address, value);
@@ -485,10 +542,10 @@ void _GBMBC3(struct GB* gb, uint16_t address, uint8_t value) {
 		GBMBCSwitchBank(gb, bank);
 		break;
 	case 0x2:
-		if (value < 4) {
+		if (value < 8) {
 			GBMBCSwitchSramBank(gb, value);
 			memory->rtcAccess = false;
-		} else if (value >= 8 && value <= 0xC) {
+		} else if (value <= 0xC) {
 			memory->activeRtcReg = value - 8;
 			memory->rtcAccess = true;
 		}
@@ -640,6 +697,7 @@ void _GBMBC7(struct GB* gb, uint16_t address, uint8_t value) {
 		break;
 	case 0x5:
 		_GBMBC7Write(&gb->memory, address, value);
+		break;
 	default:
 		// TODO
 		mLOG(GB_MBC, STUB, "MBC7 unknown address: %04X:%02X", address, value);
@@ -817,6 +875,82 @@ static void _GBMBC7Write(struct GBMemory* memory, uint16_t address, uint8_t valu
 		value = GBMBC7FieldSetDO(value, GBMBC7FieldGetDO(old));
 	}
 	mbc7->eeprom = value;
+}
+
+void _GBMMM01(struct GB* gb, uint16_t address, uint8_t value) {
+	struct GBMemory* memory = &gb->memory;
+	if (!memory->mbcState.mmm01.locked) {
+		switch (address >> 13) {
+		case 0x0:
+			memory->mbcState.mmm01.locked = true;
+			GBMBCSwitchBank0(gb, memory->mbcState.mmm01.currentBank0);
+			break;
+		case 0x1:
+			memory->mbcState.mmm01.currentBank0 &= ~0x7F;
+			memory->mbcState.mmm01.currentBank0 |= value & 0x7F;
+			break;
+		case 0x2:
+			memory->mbcState.mmm01.currentBank0 &= ~0x180;
+			memory->mbcState.mmm01.currentBank0 |= (value & 0x30) << 3;
+			break;
+		default:
+			// TODO
+			mLOG(GB_MBC, STUB, "MMM01 unknown address: %04X:%02X", address, value);
+			break;
+		}
+		return;
+	}
+	switch (address >> 13) {
+	case 0x0:
+		switch (value) {
+		case 0xA:
+			memory->sramAccess = true;
+			GBMBCSwitchSramBank(gb, memory->sramCurrentBank);
+			break;
+		default:
+			memory->sramAccess = false;
+			break;
+		}
+		break;
+	case 0x1:
+		GBMBCSwitchBank(gb, value + memory->mbcState.mmm01.currentBank0);
+		break;
+	case 0x2:
+		GBMBCSwitchSramBank(gb, value);
+		break;
+	default:
+		// TODO
+		mLOG(GB_MBC, STUB, "MMM01 unknown address: %04X:%02X", address, value);
+		break;
+	}
+}
+
+void _GBHuC1(struct GB* gb, uint16_t address, uint8_t value) {
+	struct GBMemory* memory = &gb->memory;
+	int bank = value & 0x3F;
+	switch (address >> 13) {
+	case 0x0:
+		switch (value) {
+		case 0xE:
+			memory->sramAccess = false;
+			break;
+		default:
+			memory->sramAccess = true;
+			GBMBCSwitchSramBank(gb, memory->sramCurrentBank);
+			break;
+		}
+		break;
+	case 0x1:
+		GBMBCSwitchBank(gb, bank);
+		break;
+	case 0x2:
+		GBMBCSwitchSramBank(gb, value);
+		break;
+	default:
+		// TODO
+		mLOG(GB_MBC, STUB, "HuC-1 unknown address: %04X:%02X", address, value);
+		break;
+	}
 }
 
 void _GBHuC3(struct GB* gb, uint16_t address, uint8_t value) {
@@ -1062,6 +1196,21 @@ uint8_t _GBTAMA5Read(struct GBMemory* memory, uint16_t address) {
 			mLOG(GB_MBC, STUB, "TAMA5 unknown read: %02X", tama5->reg);
 			return 0xF1;
 		}
+	}
+}
+
+void _GBWisdomTree(struct GB* gb, uint16_t address, uint8_t value) {
+	UNUSED(value);
+	int bank = address & 0x3F;
+	switch (address >> 14) {
+	case 0x0:
+		GBMBCSwitchBank0(gb, bank * 2);
+		GBMBCSwitchBank(gb, bank * 2 + 1);
+		break;
+	default:
+		// TODO
+		mLOG(GB_MBC, STUB, "Wisdom Tree unknown address: %04X:%02X", address, value);
+		break;
 	}
 }
 

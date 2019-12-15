@@ -47,7 +47,7 @@ mLOG_DECLARE_CATEGORY(GB_STATE);
  * | 0x00040 - 0x00043: Reserved (DI pending cycles)
  * | 0x00044 - 0x00047: Flags
  *   | bit 0: Is condition met?
- *   | bit 1: Is condition IRQ pending?
+ *   | bit 1: Is IRQ pending?
  *   | bit 2: Double speed
  *   | bit 3: Is EI pending?
  *   | bits 4 - 31: Reserved
@@ -195,6 +195,7 @@ DECL_BITS(GBSerializedAudioFlags, Frame, 22, 3);
 DECL_BIT(GBSerializedAudioFlags, Ch1SweepEnabled, 25);
 DECL_BIT(GBSerializedAudioFlags, Ch1SweepOccurred, 26);
 DECL_BIT(GBSerializedAudioFlags, Ch3Readable, 27);
+DECL_BIT(GBSerializedAudioFlags, SkipFrame, 28);
 
 DECL_BITFIELD(GBSerializedAudioEnvelope, uint32_t);
 DECL_BITS(GBSerializedAudioEnvelope, Length, 0, 7);
@@ -232,7 +233,7 @@ DECL_BITFIELD(GBSerializedCpuFlags, uint32_t);
 DECL_BIT(GBSerializedCpuFlags, Condition, 0);
 DECL_BIT(GBSerializedCpuFlags, IrqPending, 1);
 DECL_BIT(GBSerializedCpuFlags, DoubleSpeed, 2);
-DECL_BIT(GBSerializedCpuFlags, EiPending, 1);
+DECL_BIT(GBSerializedCpuFlags, EiPending, 3);
 
 DECL_BITFIELD(GBSerializedTimerFlags, uint8_t);
 DECL_BIT(GBSerializedTimerFlags, IrqPending, 0);
@@ -262,6 +263,7 @@ DECL_BITS(GBSerializedSGBFlags, RenderMode, 2, 2);
 DECL_BITS(GBSerializedSGBFlags, BufferIndex, 4, 3);
 DECL_BITS(GBSerializedSGBFlags, CurrentController, 7, 2);
 DECL_BITS(GBSerializedSGBFlags, ReqControllers, 9, 2);
+DECL_BIT(GBSerializedSGBFlags, Increment, 11);
 
 #pragma pack(push, 1)
 struct GBSerializedState {
@@ -373,6 +375,10 @@ struct GBSerializedState {
 				uint16_t sr;
 				uint32_t writable;
 			} mbc7;
+			struct {
+				uint8_t locked;
+				uint8_t bank0;
+			} mmm01;
 			struct {
 				uint8_t reserved[16];
 			} padding;

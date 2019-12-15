@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2016 Jeffrey Pfau
+/* Copyright (c) 2013-2018 Jeffrey Pfau
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,56 +8,21 @@
 #include <mgba/internal/gba/gba.h>
 #include <mgba/internal/gba/io.h>
 
-#define TIMER_IRQ_DELAY 7
 #define TIMER_RELOAD_DELAY 0
 #define TIMER_STARTUP_DELAY 2
 
-static void GBATimerIrq(struct GBA* gba, int timerId) {
-	struct GBATimer* timer = &gba->timers[timerId];
-	if (GBATimerFlagsIsIrqPending(timer->flags)) {
-		timer->flags = GBATimerFlagsClearIrqPending(timer->flags);
-		GBARaiseIRQ(gba, IRQ_TIMER0 + timerId);
-	}
-}
-
-static void GBATimerIrq0(struct mTiming* timing, void* context, uint32_t cyclesLate) {
-	UNUSED(timing);
-	UNUSED(cyclesLate);
-	GBATimerIrq(context, 0);
-}
-
-static void GBATimerIrq1(struct mTiming* timing, void* context, uint32_t cyclesLate) {
-	UNUSED(timing);
-	UNUSED(cyclesLate);
-	GBATimerIrq(context, 1);
-}
-
-static void GBATimerIrq2(struct mTiming* timing, void* context, uint32_t cyclesLate) {
-	UNUSED(timing);
-	UNUSED(cyclesLate);
-	GBATimerIrq(context, 2);
-}
-
-static void GBATimerIrq3(struct mTiming* timing, void* context, uint32_t cyclesLate) {
-	UNUSED(timing);
-	UNUSED(cyclesLate);
-	GBATimerIrq(context, 3);
-}
+#define REG_TMCNT_LO(X) (REG_TM0CNT_LO + ((X) << 2))
 
 static void GBATimerUpdate(struct GBA* gba, int timerId, uint32_t cyclesLate) {
 	struct GBATimer* timer = &gba->timers[timerId];
-	gba->memory.io[(REG_TM0CNT_LO >> 1) + (timerId << 1)] = timer->reload;
-	int32_t currentTime = mTimingCurrentTime(&gba->timing) - cyclesLate;
-	int32_t tickMask = (1 << GBATimerFlagsGetPrescaleBits(timer->flags)) - 1;
-	currentTime &= ~tickMask;
-	timer->lastEvent = currentTime;
-	GBATimerUpdateRegister(gba, timerId, TIMER_RELOAD_DELAY + cyclesLate);
+	if (GBATimerFlagsIsCountUp(timer->flags)) {
+		gba->memory.io[REG_TMCNT_LO(timerId) >> 1] = timer->reload;
+	} else {
+		GBATimerUpdateRegister(gba, timerId, TIMER_RELOAD_DELAY + cyclesLate);
+	}
 
 	if (GBATimerFlagsIsDoIrq(timer->flags)) {
-		timer->flags = GBATimerFlagsFillIrqPending(timer->flags);
-		if (!mTimingIsScheduled(&gba->timing, &timer->irq)) {
-			mTimingSchedule(&gba->timing, &timer->irq, TIMER_IRQ_DELAY - cyclesLate);
-		}
+		GBARaiseIRQ(gba, IRQ_TIMER0 + timerId, cyclesLate);
 	}
 
 	if (gba->audio.enable && timerId < 2) {
@@ -73,8 +38,8 @@ static void GBATimerUpdate(struct GBA* gba, int timerId, uint32_t cyclesLate) {
 	if (timerId < 3) {
 		struct GBATimer* nextTimer = &gba->timers[timerId + 1];
 		if (GBATimerFlagsIsCountUp(nextTimer->flags)) { // TODO: Does this increment while disabled?
-			++gba->memory.io[(REG_TM1CNT_LO >> 1) + (timerId << 1)];
-			if (!gba->memory.io[(REG_TM1CNT_LO >> 1) + (timerId << 1)] && GBATimerFlagsIsEnable(nextTimer->flags)) {
+			++gba->memory.io[REG_TMCNT_LO(timerId + 1) >> 1];
+			if (!gba->memory.io[REG_TMCNT_LO(timerId + 1) >> 1] && GBATimerFlagsIsEnable(nextTimer->flags)) {
 				GBATimerUpdate(gba, timerId + 1, cyclesLate);
 			}
 		}
@@ -119,22 +84,6 @@ void GBATimerInit(struct GBA* gba) {
 	gba->timers[3].event.callback = GBATimerUpdate3;
 	gba->timers[3].event.context = gba;
 	gba->timers[3].event.priority = 0x23;
-	gba->timers[0].irq.name = "GBA Timer 0 IRQ";
-	gba->timers[0].irq.callback = GBATimerIrq0;
-	gba->timers[0].irq.context = gba;
-	gba->timers[0].irq.priority = 0x28;
-	gba->timers[1].irq.name = "GBA Timer 1 IRQ";
-	gba->timers[1].irq.callback = GBATimerIrq1;
-	gba->timers[1].irq.context = gba;
-	gba->timers[1].irq.priority = 0x29;
-	gba->timers[2].irq.name = "GBA Timer 2 IRQ";
-	gba->timers[2].irq.callback = GBATimerIrq2;
-	gba->timers[2].irq.context = gba;
-	gba->timers[2].irq.priority = 0x2A;
-	gba->timers[3].irq.name = "GBA Timer 3 IRQ";
-	gba->timers[3].irq.callback = GBATimerIrq3;
-	gba->timers[3].irq.context = gba;
-	gba->timers[3].irq.priority = 0x2B;
 }
 
 void GBATimerUpdateRegister(struct GBA* gba, int timer, int32_t cyclesLate) {
@@ -143,20 +92,29 @@ void GBATimerUpdateRegister(struct GBA* gba, int timer, int32_t cyclesLate) {
 		return;
 	}
 
+	// Align timer
 	int prescaleBits = GBATimerFlagsGetPrescaleBits(currentTimer->flags);
 	int32_t currentTime = mTimingCurrentTime(&gba->timing) - cyclesLate;
 	int32_t tickMask = (1 << prescaleBits) - 1;
 	currentTime &= ~tickMask;
+
+	// Update register
 	int32_t tickIncrement = currentTime - currentTimer->lastEvent;
 	currentTimer->lastEvent = currentTime;
 	tickIncrement >>= prescaleBits;
-	tickIncrement += gba->memory.io[(REG_TM0CNT_LO + (timer << 2)) >> 1];
-	gba->memory.io[(REG_TM0CNT_LO + (timer << 2)) >> 1] = tickIncrement;
-	if (!mTimingIsScheduled(&gba->timing, &currentTimer->event)) {
-		tickIncrement = (0x10000 - tickIncrement) << prescaleBits;
-		currentTime -= mTimingCurrentTime(&gba->timing) - cyclesLate;
-		mTimingSchedule(&gba->timing, &currentTimer->event, tickIncrement + currentTime);
+	tickIncrement += gba->memory.io[REG_TMCNT_LO(timer) >> 1];
+	while (tickIncrement >= 0x10000) {
+		tickIncrement -= 0x10000 - currentTimer->reload;
 	}
+	gba->memory.io[REG_TMCNT_LO(timer) >> 1] = tickIncrement;
+
+	// Schedule next update
+	tickIncrement = (0x10000 - tickIncrement) << prescaleBits;
+	currentTime += tickIncrement;
+	currentTime &= ~tickMask;
+	currentTime -= mTimingCurrentTime(&gba->timing);
+	mTimingDeschedule(&gba->timing, &currentTimer->event);
+	mTimingSchedule(&gba->timing, &currentTimer->event, currentTime);
 }
 
 void GBATimerWriteTMCNT_LO(struct GBA* gba, int timer, uint16_t reload) {
@@ -190,7 +148,7 @@ void GBATimerWriteTMCNT_HI(struct GBA* gba, int timer, uint16_t control) {
 	currentTimer->flags = GBATimerFlagsTestFillEnable(currentTimer->flags, control & 0x0080);
 	if (!wasEnabled && GBATimerFlagsIsEnable(currentTimer->flags)) {
 		mTimingDeschedule(&gba->timing, &currentTimer->event);
-		gba->memory.io[(REG_TM0CNT_LO + (timer << 2)) >> 1] = currentTimer->reload;
+		gba->memory.io[REG_TMCNT_LO(timer) >> 1] = currentTimer->reload;
 		int32_t tickMask = (1 << prescaleBits) - 1;
 		currentTimer->lastEvent = (mTimingCurrentTime(&gba->timing) - TIMER_STARTUP_DELAY) & ~tickMask;
 		GBATimerUpdateRegister(gba, timer, TIMER_STARTUP_DELAY);

@@ -125,13 +125,14 @@ static void _printStatus(struct CLIDebuggerSystem* debugger) {
 	struct CLIDebuggerBackend* be = debugger->p->backend;
 	struct ARMCore* cpu = debugger->p->d.core->cpu;
 	int r;
-	for (r = 0; r < 4; ++r) {
-		be->printf(be, "%08X %08X %08X %08X\n",
-		    cpu->gprs[r << 2],
-		    cpu->gprs[(r << 2) + 1],
-		    cpu->gprs[(r << 2) + 2],
-		    cpu->gprs[(r << 2) + 3]);
+	for (r = 0; r < 16; r += 4) {
+		be->printf(be, "%sr%i: %08X  %sr%i: %08X  %sr%i: %08X  %sr%i: %08X\n",
+		    r < 10 ? " " : "", r, cpu->gprs[r],
+		    r < 9 ? " " : "", r + 1, cpu->gprs[r + 1],
+		    r < 8 ? " " : "", r + 2, cpu->gprs[r + 2],
+		    r < 7 ? " " : "", r + 3, cpu->gprs[r + 3]);
 	}
+	be->printf(be, "cpsr: ");
 	_printPSR(be, cpu->cpsr);
 	int instructionLength;
 	enum ExecutionMode mode = cpu->cpsr.t;
@@ -146,21 +147,27 @@ static void _printStatus(struct CLIDebuggerSystem* debugger) {
 static void _setBreakpointARM(struct CLIDebugger* debugger, struct CLIDebugVector* dv) {
 	struct CLIDebuggerBackend* be = debugger->backend;
 	if (!dv || dv->type != CLIDV_INT_TYPE) {
-		be->printf(be, "%s\n", ERROR_MISSING_ARGS);
+		be->printf(be, "%s", ERROR_MISSING_ARGS);
 		return;
 	}
 	uint32_t address = dv->intValue;
-	ARMDebuggerSetSoftwareBreakpoint(debugger->d.platform, address, MODE_ARM);
+	ssize_t id = ARMDebuggerSetSoftwareBreakpoint(debugger->d.platform, address, MODE_ARM);
+	if (id > 0) {
+		debugger->backend->printf(debugger->backend, INFO_BREAKPOINT_ADDED, id);
+	}
 }
 
 static void _setBreakpointThumb(struct CLIDebugger* debugger, struct CLIDebugVector* dv) {
 	struct CLIDebuggerBackend* be = debugger->backend;
 	if (!dv || dv->type != CLIDV_INT_TYPE) {
-		be->printf(be, "%s\n", ERROR_MISSING_ARGS);
+		be->printf(be, "%s", ERROR_MISSING_ARGS);
 		return;
 	}
 	uint32_t address = dv->intValue;
-	ARMDebuggerSetSoftwareBreakpoint(debugger->d.platform, address, MODE_THUMB);
+	ssize_t id = ARMDebuggerSetSoftwareBreakpoint(debugger->d.platform, address, MODE_THUMB);
+	if (id > 0) {
+		debugger->backend->printf(debugger->backend, INFO_BREAKPOINT_ADDED, id);
+	}
 }
 
 void ARMCLIDebuggerCreate(struct CLIDebuggerSystem* debugger) {

@@ -209,6 +209,7 @@ void mLibraryDestroy(struct mLibrary* library) {
 	sqlite3_finalize(library->select);
 	sqlite3_finalize(library->count);
 	sqlite3_close(library->db);
+	free(library);
 }
 
 void mLibraryLoadDirectory(struct mLibrary* library, const char* base) {
@@ -340,7 +341,7 @@ static void _mLibraryDeleteEntry(struct mLibrary* library, struct mLibraryEntry*
 }
 
 void mLibraryClear(struct mLibrary* library) {
-	int result = sqlite3_exec(library->db,
+	sqlite3_exec(library->db,
 		"   BEGIN TRANSACTION;"
 		"\n DELETE FROM roots;"
 		"\n DELETE FROM roms;"

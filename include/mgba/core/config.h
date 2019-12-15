@@ -33,7 +33,6 @@ struct mCoreOptions {
 	int frameskip;
 	bool rewindEnable;
 	int rewindBufferCapacity;
-	bool rewindSave;
 	float fpsTarget;
 	size_t audioBuffers;
 	unsigned sampleRate;
@@ -43,6 +42,7 @@ struct mCoreOptions {
 	int height;
 	bool lockAspectRatio;
 	bool lockIntegerScaling;
+	bool interframeBlending;
 	bool resampleVideo;
 	bool suspendScreensaver;
 	char* shader;

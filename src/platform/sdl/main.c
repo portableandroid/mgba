@@ -25,6 +25,7 @@
 #include <mgba/core/core.h>
 #include <mgba/core/config.h>
 #include <mgba/core/input.h>
+#include <mgba/core/serialize.h>
 #include <mgba/core/thread.h>
 #include <mgba/internal/gba/input.h>
 
@@ -43,6 +44,12 @@ static void mSDLDeinit(struct mSDLRenderer* renderer);
 
 static int mSDLRun(struct mSDLRenderer* renderer, struct mArguments* args);
 
+static struct VFile* _state = NULL;
+
+static void _loadState(struct mCoreThread* thread) {
+	mCoreLoadStateNamed(thread->core, _state, SAVESTATE_RTC);
+}
+
 int main(int argc, char** argv) {
 	struct mSDLRenderer renderer = {0};
 
@@ -50,7 +57,6 @@ int main(int argc, char** argv) {
 		.useBios = true,
 		.rewindEnable = true,
 		.rewindBufferCapacity = 600,
-		.rewindSave = true,
 		.audioBuffers = 1024,
 		.videoSync = false,
 		.audioSync = true,
@@ -84,6 +90,12 @@ int main(int argc, char** argv) {
 		freeArguments(&args);
 		return 1;
 	}
+
+	if (!renderer.core->init(renderer.core)) {
+		freeArguments(&args);
+		return 1;
+	}
+
 	renderer.core->desiredVideoDimensions(renderer.core, &renderer.width, &renderer.height);
 #ifdef BUILD_GL
 	mSDLGLCreate(&renderer);
@@ -99,11 +111,6 @@ int main(int argc, char** argv) {
 	}
 	opts.width = renderer.width * renderer.ratio;
 	opts.height = renderer.height * renderer.ratio;
-
-	if (!renderer.core->init(renderer.core)) {
-		freeArguments(&args);
-		return 1;
-	}
 
 	struct mCheatDevice* device = NULL;
 	if (args.cheatsFile && (device = renderer.core->cheatDevice(renderer.core))) {
@@ -124,19 +131,17 @@ int main(int argc, char** argv) {
 
 	renderer.viewportWidth = renderer.core->opts.width;
 	renderer.viewportHeight = renderer.core->opts.height;
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 	renderer.player.fullscreen = renderer.core->opts.fullscreen;
 	renderer.player.windowUpdated = 0;
-#else
-	renderer.fullscreen = renderer.core->opts.fullscreen;
-#endif
 
 	renderer.lockAspectRatio = renderer.core->opts.lockAspectRatio;
 	renderer.lockIntegerScaling = renderer.core->opts.lockIntegerScaling;
+	renderer.interframeBlending = renderer.core->opts.interframeBlending;
 	renderer.filter = renderer.core->opts.resampleVideo;
 
 	if (!mSDLInit(&renderer)) {
 		freeArguments(&args);
+		mCoreConfigDeinit(&renderer.core->config);
 		renderer.core->deinit(renderer.core);
 		return 1;
 	}
@@ -172,6 +177,24 @@ int main(int argc, char** argv) {
 
 	return ret;
 }
+
+#if defined(_WIN32) && !defined(_UNICODE)
+#include <mgba-util/string.h>
+
+int wmain(int argc, wchar_t** argv) {
+	char** argv8 = malloc(sizeof(char*) * argc);
+	int i;
+	for (i = 0; i < argc; ++i) {
+		argv8[i] = utf16to8((uint16_t*) argv[i], wcslen(argv[i]) * 2);
+	}
+	int ret = main(argc, argv8);
+	for (i = 0; i < argc; ++i) {
+		free(argv8[i]);
+	}
+	free(argv8);
+	return ret;
+}
+#endif
 
 int mSDLRun(struct mSDLRenderer* renderer, struct mArguments* args) {
 	struct mCoreThread thread = {
@@ -232,6 +255,15 @@ int mSDLRun(struct mSDLRenderer* renderer, struct mArguments* args) {
 		mSDLSuspendScreensaver(&renderer->events);
 #endif
 		if (mSDLInitAudio(&renderer->audio, &thread)) {
+			if (args->savestate) {
+				struct VFile* state = VFileOpen(args->savestate, O_RDONLY);
+				if (state) {
+					_state = state;
+					mCoreThreadRunFunction(&thread, _loadState);
+					_state = NULL;
+					state->close(state);
+				}
+			}
 			renderer->runloop(renderer, &thread);
 			mSDLPauseAudio(&renderer->audio);
 			if (mCoreThreadHasCrashed(&thread)) {

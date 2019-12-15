@@ -7,6 +7,7 @@
 #include "MemoryView.h"
 
 #include "CoreController.h"
+#include "MemoryDump.h"
 
 #include <mgba/core/core.h>
 
@@ -42,8 +43,9 @@ MemoryView::MemoryView(std::shared_ptr<CoreController> controller, QWidget* pare
 	connect(m_ui.width16, &QAbstractButton::clicked, [this]() { m_ui.hexfield->setAlignment(2); });
 	connect(m_ui.width32, &QAbstractButton::clicked, [this]() { m_ui.hexfield->setAlignment(4); });
 	connect(m_ui.setAddress, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-	        m_ui.hexfield, static_cast<void (MemoryModel::*)(uint32_t)>(&MemoryModel::jumpToAddress));
+	        this, static_cast<void (MemoryView::*)(uint32_t)>(&MemoryView::jumpToAddress));
 	connect(m_ui.hexfield, &MemoryModel::selectionChanged, this, &MemoryView::updateSelection);
+	connect(m_ui.saveRange, &QAbstractButton::clicked, this, &MemoryView::saveRange);
 
 	connect(controller.get(), &CoreController::stopping, this, &QWidget::close);
 
@@ -66,8 +68,10 @@ void MemoryView::setIndex(int index) {
 	size_t nBlocks = core->listMemoryBlocks(core, &blocks);
 	const mCoreMemoryBlock& info = blocks[index];
 
+	m_region = qMakePair(info.start, info.end);
 	m_ui.segments->setValue(-1);
 	m_ui.segments->setVisible(info.maxSegment > 0);
+	m_ui.segmentColon->setVisible(info.maxSegment > 0);
 	m_ui.segments->setMaximum(info.maxSegment);
 	m_ui.hexfield->setRegion(info.start, info.end - info.start, info.shortName);
 }
@@ -84,6 +88,17 @@ void MemoryView::setSegment(int segment) {
 void MemoryView::update() {
 	m_ui.hexfield->viewport()->update();
 	updateStatus();
+}
+
+void MemoryView::jumpToAddress(uint32_t address) {
+	if (address < m_region.first || address >= m_region.second) {
+		m_ui.regions->setCurrentIndex(0);
+		setIndex(0);
+	}
+	if (address < m_region.first || address >= m_region.second) {
+		return;
+	}
+	m_ui.hexfield->jumpToAddress(address);
 }
 
 void MemoryView::updateSelection(uint32_t start, uint32_t end) {
@@ -129,4 +144,13 @@ void MemoryView::updateStatus() {
 		m_ui.uintVal->setText(QString::number(value.u32));
 		break;
 	}
+}
+
+void MemoryView::saveRange() {
+	MemoryDump* memdump = new MemoryDump(m_controller);
+	memdump->setAttribute(Qt::WA_DeleteOnClose);
+	memdump->setAddress(m_selection.first);
+	memdump->setSegment(m_ui.segments->value());
+	memdump->setByteCount(m_selection.second - m_selection.first);
+	memdump->show();
 }

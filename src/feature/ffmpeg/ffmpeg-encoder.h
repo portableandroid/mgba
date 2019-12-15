@@ -34,6 +34,8 @@ CXX_GUARD_START
 #define FFMPEG_USE_PACKET_UNREF
 #endif
 
+#define FFMPEG_FILTERS_MAX 4
+
 struct FFmpegEncoder {
 	struct mAVStream d;
 	struct AVFormatContext* context;
@@ -56,8 +58,11 @@ struct FFmpegEncoder {
 	AVFrame* audioFrame;
 	size_t currentAudioSample;
 	int64_t currentAudioFrame;
-	int64_t nextAudioPts; // TODO (0.6): Remove
+#ifdef USE_LIBAVRESAMPLE
 	struct AVAudioResampleContext* resampleContext;
+#else
+	struct SwrContext* resampleContext;
+#endif
 #ifdef FFMPEG_USE_NEW_BSF
 	struct AVBSFContext* absf; // Needed for AAC in MP4
 #else
@@ -67,19 +72,28 @@ struct FFmpegEncoder {
 
 	struct AVCodecContext* video;
 	enum AVPixelFormat pixFormat;
+	enum AVPixelFormat ipixFormat;
 	struct AVFrame* videoFrame;
 	int width;
 	int height;
 	int iwidth;
 	int iheight;
+	int frameskip;
+	int skipResidue;
 	int64_t currentVideoFrame;
 	struct SwsContext* scaleContext;
 	struct AVStream* videoStream;
+
+	struct AVFilterGraph* graph;
+	struct AVFilterContext* source;
+	struct AVFilterContext* sink;
+	struct AVFilterContext* filters[FFMPEG_FILTERS_MAX];
+	struct AVFrame* sinkFrame;
 };
 
 void FFmpegEncoderInit(struct FFmpegEncoder*);
 bool FFmpegEncoderSetAudio(struct FFmpegEncoder*, const char* acodec, unsigned abr);
-bool FFmpegEncoderSetVideo(struct FFmpegEncoder*, const char* vcodec, unsigned vbr);
+bool FFmpegEncoderSetVideo(struct FFmpegEncoder*, const char* vcodec, unsigned vbr, int frameskip);
 bool FFmpegEncoderSetContainer(struct FFmpegEncoder*, const char* container);
 void FFmpegEncoderSetDimensions(struct FFmpegEncoder*, int width, int height);
 bool FFmpegEncoderVerifyContainer(struct FFmpegEncoder*);

@@ -54,7 +54,8 @@ static const struct mInputPlatformInfo _mGUIKeyInfo = {
 		[mGUI_INPUT_DECREASE_BRIGHTNESS] = "Decrease solar brightness",
 		[mGUI_INPUT_SCREEN_MODE] = "Screen mode",
 		[mGUI_INPUT_SCREENSHOT] = "Take screenshot",
-		[mGUI_INPUT_FAST_FORWARD] = "Fast forward",
+		[mGUI_INPUT_FAST_FORWARD_HELD] = "Fast forward (held)",
+		[mGUI_INPUT_FAST_FORWARD_TOGGLE] = "Fast forward (toggle)",
 	},
 	.nKeys = GUI_INPUT_MAX
 };
@@ -72,6 +73,26 @@ static struct mGUILogger {
 	.vf = NULL,
 	.logLevel = 0
 };
+
+static bool _testExtensions(const char* name) {
+	char ext[PATH_MAX] = {};
+	separatePath(name, NULL, NULL, ext);
+
+	if (!strncmp(ext, "sav", PATH_MAX)) {
+		return false;
+	}
+	if (!strncmp(ext, "png", PATH_MAX)) {
+		return false;
+	}
+	if (!strncmp(ext, "ini", PATH_MAX)) {
+		return false;
+	}
+	if (!strncmp(ext, "ss", 2)) {
+		return false;
+	}
+
+	return true;
+}
 
 static void _drawBackground(struct GUIBackground* background, void* context) {
 	UNUSED(context);
@@ -191,13 +212,18 @@ void mGUIInit(struct mGUIRunner* runner, const char* port) {
 
 	const char* lastPath = mCoreConfigGetValue(&runner->config, "lastDirectory");
 	if (lastPath) {
-		strncpy(runner->params.currentPath, lastPath, PATH_MAX - 1);
-		runner->params.currentPath[PATH_MAX - 1] = '\0';
+		struct VDir* dir = VDirOpen(lastPath);
+		if (dir) {
+			dir->close(dir);
+			strncpy(runner->params.currentPath, lastPath, PATH_MAX - 1);
+			runner->params.currentPath[PATH_MAX - 1] = '\0';
+		}
 	}
 
 #ifndef DISABLE_THREADING
 	if (!runner->autosave.running) {
 		runner->autosave.running = true;
+		runner->autosave.core = NULL;
 		MutexInit(&runner->autosave.mutex);
 		ConditionInit(&runner->autosave.cond);
 		ThreadCreate(&runner->autosave.thread, mGUIAutosaveThread, &runner->autosave);
@@ -212,7 +238,7 @@ void mGUIDeinit(struct mGUIRunner* runner) {
 	ConditionWake(&runner->autosave.cond);
 	MutexUnlock(&runner->autosave.mutex);
 
-	ThreadJoin(runner->autosave.thread);
+	ThreadJoin(&runner->autosave.thread);
 
 	ConditionDeinit(&runner->autosave.cond);
 	MutexDeinit(&runner->autosave.mutex);
@@ -250,7 +276,34 @@ static void _log(struct mLogger* logger, int category, enum mLogLevel level, con
 	if (len >= sizeof(log2)) {
 		len = sizeof(log2) - 1;
 	}
-	guiLogger->vf->write(guiLogger->vf, log2, len);
+	if (guiLogger->vf->write(guiLogger->vf, log2, len) < 0) {
+		char path[PATH_MAX];
+		mCoreConfigDirectory(path, PATH_MAX);
+		strncat(path, PATH_SEP "log", PATH_MAX - strlen(path));
+		guiLogger->vf->close(guiLogger->vf);
+		guiLogger->vf = VFileOpen(path, O_CREAT | O_WRONLY | O_APPEND);
+		if (guiLogger->vf->write(guiLogger->vf, log2, len) < 0) {
+			guiLogger->vf->close(guiLogger->vf);
+			guiLogger->vf = NULL;
+		}
+	}
+}
+
+static void _updateLoading(size_t read, size_t size, void* context) {
+	struct mGUIRunner* runner = context;
+	if (read & 0x3FFFF) {
+		return;
+	}
+
+	runner->params.drawStart();
+	if (runner->params.guiPrepare) {
+		runner->params.guiPrepare();
+	}
+	GUIFontPrintf(runner->params.font, runner->params.width / 2, (GUIFontHeight(runner->params.font) + runner->params.height) / 2, GUI_ALIGN_HCENTER, 0xFFFFFFFF, "Loading...%i%%", 100 * read / size);
+	if (runner->params.guiFinish) {
+		runner->params.guiFinish();
+	}
+	runner->params.drawEnd();
 }
 
 void mGUIRun(struct mGUIRunner* runner, const char* path) {
@@ -328,9 +381,11 @@ void mGUIRun(struct mGUIRunner* runner, const char* path) {
 		runner->core->init(runner->core);
 		mCoreInitConfig(runner->core, runner->port);
 		mInputMapInit(&runner->core->inputMap, &GBAInputInfo);
-		found = mCoreLoadFile(runner->core, path);
+
+		found = mCorePreloadFileCB(runner->core, path, _updateLoading, runner);
 		if (!found) {
 			mLOG(GUI_RUNNER, WARN, "Failed to load %s!", path);
+			mCoreConfigDeinit(&runner->core->config);
 			runner->core->deinit(runner->core);
 		}
 	}
@@ -392,6 +447,7 @@ void mGUIRun(struct mGUIRunner* runner, const char* path) {
 		runner->lastFpsCheck = 1000000LL * tv.tv_sec + tv.tv_usec;
 
 		int frame = 0;
+		bool fastForward = false;
 		while (running) {
 			if (runner->running) {
 				running = runner->running(runner);
@@ -421,10 +477,15 @@ void mGUIRun(struct mGUIRunner* runner, const char* path) {
 			if (guiKeys & (1 << mGUI_INPUT_SCREENSHOT)) {
 				mCoreTakeScreenshot(runner->core);
 			}
-			if (heldKeys & (1 << mGUI_INPUT_FAST_FORWARD)) {
-				runner->setFrameLimiter(runner, false);
-			} else {
-				runner->setFrameLimiter(runner, true);
+			if (runner->setFrameLimiter) {
+				if (guiKeys & (1 << mGUI_INPUT_FAST_FORWARD_TOGGLE)) {
+					fastForward = !fastForward;
+				}
+				if (fastForward || (heldKeys & (1 << mGUI_INPUT_FAST_FORWARD_HELD))) {
+					runner->setFrameLimiter(runner, false);
+				} else {
+					runner->setFrameLimiter(runner, true);
+				}
 			}
 			uint16_t keys = runner->pollGameInput(runner);
 			if (runner->prepareForFrame) {
@@ -481,6 +542,10 @@ void mGUIRun(struct mGUIRunner* runner, const char* path) {
 		if (runner->paused) {
 			runner->paused(runner);
 		}
+		if (runner->setFrameLimiter) {
+			runner->setFrameLimiter(runner, true);
+		}
+
 		GUIInvalidateKeys(&runner->params);
 		uint32_t keys = 0xFFFFFFFF; // Huge hack to avoid an extra variable!
 		struct GUIMenuItem* item;
@@ -517,6 +582,10 @@ void mGUIRun(struct mGUIRunner* runner, const char* path) {
 			runner->params.drawStart();
 			runner->drawFrame(runner, true);
 			runner->params.drawEnd();
+#ifdef _3DS
+			// XXX: Why does this fix #1294?
+			usleep(1000);
+#endif
 			GUIPollInput(&runner->params, 0, &keys);
 		}
 		if (runner->unpaused) {
@@ -561,6 +630,7 @@ void mGUIRun(struct mGUIRunner* runner, const char* path) {
 	}
 	mInputMapDeinit(&runner->core->inputMap);
 	mLOG(GUI_RUNNER, DEBUG, "Deinitializing core...");
+	mCoreConfigDeinit(&runner->core->config);
 	runner->core->deinit(runner->core);
 	runner->core = NULL;
 
@@ -580,10 +650,18 @@ void mGUIRunloop(struct mGUIRunner* runner) {
 	}
 	while (true) {
 		char path[PATH_MAX];
-		if (!GUISelectFile(&runner->params, path, sizeof(path), 0)) {
+		const char* preselect = mCoreConfigGetValue(&runner->config, "lastGame");
+		if (preselect) {
+			preselect = strrchr(preselect, '/');
+		}
+		if (preselect) {
+			++preselect;
+		}
+		if (!GUISelectFile(&runner->params, path, sizeof(path), _testExtensions, NULL, preselect)) {
 			break;
 		}
 		mCoreConfigSetValue(&runner->config, "lastDirectory", runner->params.currentPath);
+		mCoreConfigSetValue(&runner->config, "lastGame", path);
 		mCoreConfigSave(&runner->config);
 		mGUIRun(runner, path);
 	}

@@ -5,6 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include <mgba/core/thread.h>
 
+#include <mgba/core/blip_buf.h>
 #include <mgba/core/core.h>
 #include <mgba/core/serialize.h>
 #include <mgba-util/patch.h>
@@ -59,6 +60,11 @@ static void _waitUntilNotState(struct mCoreThreadInternal* threadContext, enum m
 	threadContext->sync.videoFrameWait = false;
 	MutexUnlock(&threadContext->sync.videoFrameMutex);
 
+	MutexLock(&threadContext->sync.audioBufferMutex);
+	bool audioWait = threadContext->sync.audioWait;
+	threadContext->sync.audioWait = false;
+	MutexUnlock(&threadContext->sync.audioBufferMutex);
+
 	while (threadContext->state == oldState) {
 		MutexUnlock(&threadContext->stateMutex);
 
@@ -75,6 +81,10 @@ static void _waitUntilNotState(struct mCoreThreadInternal* threadContext, enum m
 		MutexLock(&threadContext->stateMutex);
 		ConditionWake(&threadContext->stateCond);
 	}
+
+	MutexLock(&threadContext->sync.audioBufferMutex);
+	threadContext->sync.audioWait = audioWait;
+	MutexUnlock(&threadContext->sync.audioBufferMutex);
 
 	MutexLock(&threadContext->sync.videoFrameMutex);
 	threadContext->sync.videoFrameWait = videoFrameWait;
@@ -200,16 +210,19 @@ static THREAD_ENTRY _mCoreThreadRun(void* context) {
 		while (impl->state > THREAD_MAX_RUNNING && impl->state < THREAD_EXITING) {
 			deferred = impl->state;
 
-			if (impl->state == THREAD_INTERRUPTING) {
+			switch (deferred) {
+			case THREAD_INTERRUPTING:
 				impl->state = THREAD_INTERRUPTED;
 				ConditionWake(&impl->stateCond);
-			}
-
-			if (impl->state == THREAD_PAUSING) {
+				break;
+			case THREAD_PAUSING:
 				impl->state = THREAD_PAUSED;
-			}
-			if (impl->state == THREAD_RESETING) {
+				break;
+			case THREAD_RESETING:
 				impl->state = THREAD_RUNNING;
+				break;
+			default:
+				break;
 			}
 
 			if (deferred >= THREAD_MIN_DEFERRED && deferred <= THREAD_MAX_DEFERRED) {
@@ -217,8 +230,18 @@ static THREAD_ENTRY _mCoreThreadRun(void* context) {
 			}
 
 			deferred = impl->state;
+			if (deferred == THREAD_INTERRUPTED) {
+				deferred = impl->savedState;
+			}
 			while (impl->state >= THREAD_WAITING && impl->state <= THREAD_MAX_WAITING) {
 				ConditionWait(&impl->stateCond, &impl->stateMutex);
+
+				if (impl->sync.audioWait) {
+					MutexUnlock(&impl->stateMutex);
+					mCoreSyncLockAudio(&impl->sync);
+					mCoreSyncProduceAudio(&impl->sync, core->getAudioChannel(core, 0), core->getAudioBufferSize(core));
+					MutexLock(&impl->stateMutex);
+				}
 			}
 		}
 		MutexUnlock(&impl->stateMutex);
@@ -263,6 +286,9 @@ static THREAD_ENTRY _mCoreThreadRun(void* context) {
 	}
 	core->clearCoreCallbacks(core);
 
+	if (threadContext->logger.d.filter == &filter) {
+		mLogFilterDeinit(&filter);
+	}
 	threadContext->logger.d.filter = NULL;
 
 	return 0;
@@ -387,7 +413,7 @@ void mCoreThreadJoin(struct mCoreThread* threadContext) {
 	if (!threadContext->impl) {
 		return;
 	}
-	ThreadJoin(threadContext->impl->thread);
+	ThreadJoin(&threadContext->impl->thread);
 
 	MutexDeinit(&threadContext->impl->stateMutex);
 	ConditionDeinit(&threadContext->impl->stateCond);
@@ -568,7 +594,6 @@ void mCoreThreadRewindParamsChanged(struct mCoreThread* threadContext) {
 	struct mCore* core = threadContext->core;
 	if (core->opts.rewindEnable && core->opts.rewindBufferCapacity > 0) {
 		 mCoreRewindContextInit(&threadContext->impl->rewind, core->opts.rewindBufferCapacity, true);
-		 threadContext->impl->rewind.stateFlags = core->opts.rewindSave ? SAVESTATE_SAVEDATA : 0;
 	} else {
 		 mCoreRewindContextDeinit(&threadContext->impl->rewind);
 	}

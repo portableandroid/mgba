@@ -155,6 +155,7 @@ static bool _addPAR3Special(struct GBACheatSet* cheats, uint32_t op2) {
 		cheat = mCheatListAppend(&cheats->d.list);
 		cheat->type = CHEAT_ASSIGN;
 		cheat->width = 1;
+		cheat->repeat = 1;
 		cheat->address = _parAddr(op2);
 		cheats->incompleteCheat = mCheatListIndex(&cheats->d.list, cheat);
 		break;
@@ -166,6 +167,7 @@ static bool _addPAR3Special(struct GBACheatSet* cheats, uint32_t op2) {
 		cheat = mCheatListAppend(&cheats->d.list);
 		cheat->type = CHEAT_ASSIGN;
 		cheat->width = 2;
+		cheat->repeat = 1;
 		cheat->address = _parAddr(op2);
 		cheats->incompleteCheat = mCheatListIndex(&cheats->d.list, cheat);
 		break;
@@ -177,6 +179,7 @@ static bool _addPAR3Special(struct GBACheatSet* cheats, uint32_t op2) {
 		cheat = mCheatListAppend(&cheats->d.list);
 		cheat->type = CHEAT_ASSIGN;
 		cheat->width = 4;
+		cheat->repeat = 1;
 		cheat->address = _parAddr(op2);
 		cheats->incompleteCheat = mCheatListIndex(&cheats->d.list, cheat);
 		break;
@@ -281,7 +284,7 @@ bool GBACheatAddProActionReplayRaw(struct GBACheatSet* cheats, uint32_t op1, uin
 			return false;
 		}
 		cheats->hook = malloc(sizeof(*cheats->hook));
-		cheats->hook->address = BASE_CART0 | (op1 & (SIZE_CART0 - 1));
+		cheats->hook->address = BASE_CART0 | (op1 & (SIZE_CART0 - 2));
 		cheats->hook->mode = MODE_THUMB;
 		cheats->hook->refs = 1;
 		cheats->hook->reentries = 0;
