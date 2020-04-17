@@ -28,6 +28,7 @@ Features
 - Unterstützung für Cheat-Codes.
 - 9 Speicherstände für Savestates/Spielzustände. Savestates können auch als Screenshots dargestellt werden.
 - Video- und GIF-Aufzeichnung.
+- e-Reader-Unterstützung.
 - Frei wählbare Tastenbelegungen für Tastaturen und Controller.
 - Unterstützung für ZIP- und 7z-Archive.
 - Unterstützung für Patches im IPS-, UPS- und BPS-Format.
@@ -68,7 +69,6 @@ Die folgenden Mapper werden teilweise unterstützt:
 - Unterstützung für Tool-Assisted Speedruns.
 - Lua-Unterstützung für Scripting.
 - Eine umfangreiche Debugging-Suite.
-- e-Reader-Unterstützung.
 - Unterstützung für Drahtlosadapter.
 
 Unterstützte Plattformen
@@ -228,7 +228,7 @@ Fußnoten
 Copyright
 ---------
 
-Copyright für mGBA © 2013 – 2018 Jeffrey Pfau. mGBA wird unter der [Mozilla Public License version 2.0](https://www.mozilla.org/MPL/2.0/) veröffentlicht. Eine Kopie der Lizenz ist in der mitgelieferten Datei LICENSE verfügbar.
+Copyright für mGBA © 2013 – 2020 Jeffrey Pfau. mGBA wird unter der [Mozilla Public License version 2.0](https://www.mozilla.org/MPL/2.0/) veröffentlicht. Eine Kopie der Lizenz ist in der mitgelieferten Datei LICENSE verfügbar.
 
 mGBA beinhaltet die folgenden Bibliotheken von Drittanbietern:
 

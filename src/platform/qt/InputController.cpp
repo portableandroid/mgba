@@ -267,11 +267,25 @@ void InputController::setGamepad(uint32_t type, int index) {
 #endif
 }
 
-void InputController::setPreferredGamepad(uint32_t type, const QString& device) {
+void InputController::setPreferredGamepad(uint32_t type, int index) {
 	if (!m_config) {
 		return;
 	}
-	mInputSetPreferredDevice(m_config->input(), "gba", type, m_playerId, device.toUtf8().constData());
+#ifdef BUILD_SDL
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	char name[34] = {0};
+	SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(SDL_JoystickListGetPointer(&s_sdlEvents.joysticks, index)->joystick), name, sizeof(name));
+#else
+	const char* name = SDL_JoystickName(SDL_JoystickIndex(SDL_JoystickListGetPointer(&s_sdlEvents.joysticks, index)->joystick));
+	if (!name) {
+		return;
+	}
+#endif
+	mInputSetPreferredDevice(m_config->input(), "gba", type, m_playerId, name);
+#else
+	UNUSED(type);
+	UNUSED(index);
+#endif
 }
 
 mRumble* InputController::rumble() {

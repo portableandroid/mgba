@@ -218,11 +218,19 @@ void DisplayGL::clearShaders() {
 	QMetaObject::invokeMethod(m_painter, "clearShaders");
 }
 
-
 void DisplayGL::resizeContext() {
 	if (m_drawThread) {
 		m_isDrawing = false;
 		CoreController::Interrupter interrupter(m_context);
+		QMetaObject::invokeMethod(m_painter, "resizeContext", Qt::BlockingQueuedConnection);
+	}
+}
+
+void DisplayGL::setVideoScale(int scale) {
+	if (m_drawThread) {
+		m_isDrawing = false;
+		CoreController::Interrupter interrupter(m_context);
+		mCoreConfigSetIntValue(&m_context->thread()->core->config, "videoScale", scale);
 		QMetaObject::invokeMethod(m_painter, "resizeContext", Qt::BlockingQueuedConnection);
 	}
 }
@@ -263,6 +271,15 @@ PainterGL::PainterGL(QWindow* surface, QOpenGLContext* parent, int forceVersion)
 
 	m_gl->makeCurrent(m_surface);
 	m_window = new QOpenGLPaintDevice;
+	{
+		// XXX: Qt creates TLS for OpenGL objects in the local thread
+		// We need to prevent that thread from being the painter thread
+		// Qt also caches the engine object on the device if a different
+		// engine is active, so let's make a temporary one
+		QOpenGLPaintDevice* fakeDevice = new QOpenGLPaintDevice;
+		QPainter fakePainter(fakeDevice);
+		m_window->paintEngine();
+	}
 #if defined(_WIN32) && defined(USE_EPOXY)
 	epoxy_handle_external_wglMakeCurrent();
 #endif
@@ -310,7 +327,7 @@ PainterGL::PainterGL(QWindow* surface, QOpenGLContext* parent, int forceVersion)
 	m_backend->lockAspectRatio = false;
 	m_backend->interframeBlending = false;
 
-	for (int i = 0; i < 2; ++i) {
+	for (int i = 0; i < 3; ++i) {
 		m_free.append(new uint32_t[1024 * 2048]);
 	}
 }
@@ -346,6 +363,11 @@ void PainterGL::setContext(std::shared_ptr<CoreController> context) {
 void PainterGL::resizeContext() {
 	if (!m_context) {
 		return;
+	}
+
+	if (m_started) {
+		mCore* core = m_context->thread()->core;
+		core->reloadConfigOption(core, "videoScale", NULL);
 	}
 
 	QSize size = m_context->screenDimensions();
@@ -401,6 +423,7 @@ void PainterGL::start() {
 	}
 #endif
 
+	m_buffer = nullptr;
 	m_active = true;
 	m_started = true;
 }
@@ -468,6 +491,11 @@ void PainterGL::performDraw() {
 	m_painter.beginNativePainting();
 	float r = m_surface->devicePixelRatio();
 	m_backend->resized(m_backend, m_size.width() * r, m_size.height() * r);
+	if (m_buffer) {
+		m_backend->postFrame(m_backend, m_buffer);
+		m_free.append(m_buffer);
+		m_buffer = nullptr;
+	}
 	m_backend->drawFrame(m_backend);
 	m_painter.endNativePainting();
 	if (m_showOSD && m_messagePainter) {
@@ -498,9 +526,12 @@ void PainterGL::dequeue() {
 		return;
 	}
 	uint32_t* buffer = m_queue.dequeue();
+	if (m_buffer) {
+		m_free.append(m_buffer);
+		m_buffer = nullptr;
+	}
 	if (buffer) {
-		m_backend->postFrame(m_backend, buffer);
-		m_free.append(buffer);
+		m_buffer = buffer;
 	}
 	m_mutex.unlock();
 }
@@ -516,6 +547,10 @@ void PainterGL::dequeueAll() {
 	}
 	if (buffer) {
 		m_backend->postFrame(m_backend, buffer);
+	}
+	if (m_buffer) {
+		m_free.append(m_buffer);
+		m_buffer = nullptr;
 	}
 	m_mutex.unlock();
 }
@@ -553,9 +588,18 @@ void PainterGL::clearShaders() {
 		return;
 	}
 #ifdef BUILD_GLES2
+	if (!m_started) {
+		m_gl->makeCurrent(m_surface);
+#if defined(_WIN32) && defined(USE_EPOXY)
+		epoxy_handle_external_wglMakeCurrent();
+#endif
+	}
 	if (m_shader.passes) {
 		mGLES2ShaderDetach(reinterpret_cast<mGLES2Context*>(m_backend));
 		mGLES2ShaderFree(&m_shader);
+	}
+	if (!m_started) {
+		m_gl->doneCurrent();
 	}
 #endif
 }

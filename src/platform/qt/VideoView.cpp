@@ -112,6 +112,15 @@ VideoView::VideoView(QWidget* parent)
 void VideoView::updatePresets() {
 	m_presets.clear();
 
+	addPreset(m_ui.preset4K, {
+		.container = QString(),
+		.vcodec = QString(),
+		.acodec = QString(),
+		.vbr = 0,
+		.abr = 0,
+		.dims = maintainAspect(QSize(3840, 2160))
+	});
+
 	addPreset(m_ui.preset1080, {
 		.container = QString(),
 		.vcodec = QString(),
@@ -177,6 +186,14 @@ void VideoView::updatePresets() {
 		.abr = 128
 	});
 
+	addPreset(m_ui.presetMP4, {
+		.container = "MP4",
+		.vcodec = "h.264",
+		.acodec = "AAC",
+		.vbr = 800,
+		.abr = 128
+	});
+
 	if (m_nativeWidth && m_nativeHeight) {
 		addPreset(m_ui.presetLossless, {
 			.container = "MKV",
@@ -197,11 +214,15 @@ VideoView::~VideoView() {
 }
 
 void VideoView::setController(std::shared_ptr<CoreController> controller) {
-	connect(controller.get(), &CoreController::stopping, this, &VideoView::stopRecording);
-	connect(this, &VideoView::recordingStarted, controller.get(), &CoreController::setAVStream);
-	connect(this, &VideoView::recordingStopped, controller.get(), &CoreController::clearAVStream, Qt::DirectConnection);
+	CoreController* controllerPtr = controller.get();
+	connect(controllerPtr, &CoreController::frameAvailable, this, [this, controllerPtr]() {
+		setNativeResolution(controllerPtr->screenDimensions());
+	});
+	connect(controllerPtr, &CoreController::stopping, this, &VideoView::stopRecording);
+	connect(this, &VideoView::recordingStarted, controllerPtr, &CoreController::setAVStream);
+	connect(this, &VideoView::recordingStopped, controllerPtr, &CoreController::clearAVStream, Qt::DirectConnection);
 
-	setNativeResolution(controller->screenDimensions());
+	setNativeResolution(controllerPtr->screenDimensions());
 }
 
 void VideoView::startRecording() {
@@ -225,6 +246,9 @@ void VideoView::stopRecording() {
 }
 
 void VideoView::setNativeResolution(const QSize& dims) {
+	if (dims.width() == m_nativeWidth && dims.height() == m_nativeHeight) {
+		return;
+	}
 	m_nativeWidth = dims.width();
 	m_nativeHeight = dims.height();
 	m_ui.presetNative->setText(tr("Native (%0x%1)").arg(m_nativeWidth).arg(m_nativeHeight));

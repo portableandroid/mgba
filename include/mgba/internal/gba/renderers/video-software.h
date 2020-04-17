@@ -131,16 +131,17 @@ struct GBAVideoSoftwareRenderer {
 
 	struct GBAVideoSoftwareBackground bg[4];
 
-	int oamDirty;
+	bool forceTarget1;
+	bool oamDirty;
 	int oamMax;
 	struct GBAVideoRendererSprite sprites[128];
 	int16_t objOffsetX;
 	int16_t objOffsetY;
 
 	uint32_t scanlineDirty[5];
-	uint16_t nextIo[REG_SOUND1CNT_LO];
+	uint16_t nextIo[REG_SOUND1CNT_LO >> 1];
 	struct ScanlineCache {
-		uint16_t io[REG_SOUND1CNT_LO];
+		uint16_t io[REG_SOUND1CNT_LO >> 1];
 		int32_t scale[2][2];
 	} cache[GBA_VIDEO_VERTICAL_PIXELS];
 	int nextY;

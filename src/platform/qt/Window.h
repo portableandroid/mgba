@@ -75,6 +75,7 @@ public slots:
 	void selectSave(bool temporary);
 	void selectState(bool load);
 	void selectPatch();
+	void scanCard();
 	void enterFullScreen();
 	void exitFullScreen();
 	void toggleFullScreen();
@@ -130,6 +131,7 @@ private slots:
 
 	void reloadAudioDriver();
 	void reloadDisplayDriver();
+	void changeRenderer();
 
 	void tryMakePortable();
 	void mustRestart();
@@ -155,6 +157,7 @@ private:
 	void updateMRU();
 
 	void openView(QWidget* widget);
+	void attachDisplay();
 
 	template <typename T, typename... A> std::function<void()> openTView(A... arg);
 	template <typename T, typename... A> std::function<void()> openControllerTView(A... arg);
@@ -245,6 +248,7 @@ public:
 	void setDimensions(int width, int height);
 	void setLockIntegerScaling(bool lock);
 	void setLockAspectRatio(bool lock);
+	void filter(bool filter);
 
 	const QPixmap& pixmap() const { return m_pixmap; }
 
@@ -258,6 +262,7 @@ private:
 	int m_aspectHeight;
 	bool m_lockAspectRatio;
 	bool m_lockIntegerScaling;
+	bool m_filter;
 };
 
 }

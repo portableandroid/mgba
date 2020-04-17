@@ -27,7 +27,8 @@ Features
 - Screenshot support.
 - Cheat code support.
 - 9 savestate slots. Savestates are also viewable as screenshots.
-- Video and GIF recording.
+- Video, GIF and APNG recording.
+- e-Reader support.
 - Remappable controls for both keyboards and gamepads.
 - Loading from ZIP and 7z files.
 - IPS, UPS and BPS patch support.
@@ -68,7 +69,6 @@ The following mappers are partially supported:
 - Re-recording support for tool-assist runs.
 - Lua support for scripting.
 - A comprehensive debug suite.
-- e-Reader support.
 - Wireless adapter support.
 
 Supported Platforms
@@ -228,7 +228,7 @@ Footnotes
 Copyright
 ---------
 
-mGBA is Copyright © 2013 – 2018 Jeffrey Pfau. It is distributed under the [Mozilla Public License version 2.0](https://www.mozilla.org/MPL/2.0/). A copy of the license is available in the distributed LICENSE file.
+mGBA is Copyright © 2013 – 2020 Jeffrey Pfau. It is distributed under the [Mozilla Public License version 2.0](https://www.mozilla.org/MPL/2.0/). A copy of the license is available in the distributed LICENSE file.
 
 mGBA contains the following third-party libraries:
 

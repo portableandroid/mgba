@@ -472,9 +472,12 @@ void SettingsView::updateConfig() {
 	}
 
 	QVariant cameraDriver = m_ui.cameraDriver->itemData(m_ui.cameraDriver->currentIndex());
-	if (cameraDriver != m_controller->getQtOption("cameraDriver")) {
+	QVariant oldCameraDriver = m_controller->getQtOption("cameraDriver");
+	if (cameraDriver != oldCameraDriver) {
 		m_controller->setQtOption("cameraDriver", cameraDriver);
-		emit cameraDriverChanged();
+		if (cameraDriver.toInt() != static_cast<int>(InputController::CameraDriver::NONE) || !oldCameraDriver.isNull()) {
+			emit cameraDriverChanged();
+		}
 	}
 
 	QVariant camera = m_ui.camera->itemData(m_ui.camera->currentIndex());
@@ -490,12 +493,13 @@ void SettingsView::updateConfig() {
 	}
 
 	int videoScale = m_controller->getOption("videoScale", 1).toInt();
+	saveSetting("videoScale", m_ui.videoScale);
+
 	int hwaccelVideo = m_controller->getOption("hwaccelVideo").toInt();
-	if (videoScale != m_ui.videoScale->value() || hwaccelVideo != m_ui.hwaccelVideo->currentIndex()) {
+	saveSetting("hwaccelVideo", m_ui.hwaccelVideo->currentIndex());
+	if (hwaccelVideo != m_ui.hwaccelVideo->currentIndex()) {
 		emit videoRendererChanged();
 	}
-	saveSetting("videoScale", m_ui.videoScale);
-	saveSetting("hwaccelVideo", m_ui.hwaccelVideo->currentIndex());
 
 	m_logModel.save(m_controller);
 	m_logModel.logger()->setLogFile(m_ui.logFile->text());
