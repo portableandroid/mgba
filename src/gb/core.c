@@ -63,9 +63,12 @@ static const struct mCoreMemoryBlock _GBCMemoryBlocks[] = {
 struct mVideoLogContext;
 struct GBCore {
 	struct mCore d;
+	struct GBVideoRenderer dummyRenderer;
 	struct GBVideoSoftwareRenderer renderer;
+#ifndef MINIMAL_CORE
 	struct GBVideoProxyRenderer proxyRenderer;
 	struct mVideoLogContext* logContext;
+#endif
 	struct mCoreCallbacks logCallbacks;
 	uint8_t keys;
 	struct mCPUComponent* components[CPU_COMPONENT_MAX];
@@ -90,6 +93,9 @@ static bool _GBCoreInit(struct mCore* core) {
 	gbcore->overrides = NULL;
 	gbcore->debuggerPlatform = NULL;
 	gbcore->cheatDevice = NULL;
+#ifndef MINIMAL_CORE
+	gbcore->logContext = NULL;
+#endif
 
 	GBCreate(gb);
 	memset(gbcore->components, 0, sizeof(gbcore->components));
@@ -98,8 +104,15 @@ static bool _GBCoreInit(struct mCore* core) {
 	mRTCGenericSourceInit(&core->rtc, core);
 	gb->memory.rtc = &core->rtc.d;
 
+	GBVideoDummyRendererCreate(&gbcore->dummyRenderer);
+	GBVideoAssociateRenderer(&gb->video, &gbcore->dummyRenderer);
+
 	GBVideoSoftwareRendererCreate(&gbcore->renderer);
 	gbcore->renderer.outputBuffer = NULL;
+
+#ifndef MINIMAL_CORE
+	gbcore->proxyRenderer.logger = NULL;
+#endif
 
 	gbcore->keys = 0;
 	gb->keySource = &gbcore->keys;
@@ -116,8 +129,10 @@ static void _GBCoreDeinit(struct mCore* core) {
 	GBDestroy(core->board);
 	mappedMemoryFree(core->cpu, sizeof(struct SM83Core));
 	mappedMemoryFree(core->board, sizeof(struct GB));
-#if defined USE_DEBUGGERS && (!defined(MINIMAL_CORE) || MINIMAL_CORE < 2)
+#if !defined(MINIMAL_CORE) || MINIMAL_CORE < 2
 	mDirectorySetDeinit(&core->dirs);
+#endif
+#ifdef USE_DEBUGGERS
 	if (core->symbolTable) {
 		mDebuggerSymbolTableDestroy(core->symbolTable);
 	}
@@ -277,8 +292,8 @@ static void _GBCoreReloadConfigOption(struct mCore* core, const char* option, co
 	}
 }
 
-static void _GBCoreDesiredVideoDimensions(struct mCore* core, unsigned* width, unsigned* height) {
-	struct GB* gb = core->board;
+static void _GBCoreDesiredVideoDimensions(const struct mCore* core, unsigned* width, unsigned* height) {
+	const struct GB* gb = core->board;
 	if (gb && (!(gb->model & GB_MODEL_SGB) || !gb->video.sgbBorders)) {
 		*width = GB_VIDEO_HORIZONTAL_PIXELS;
 		*height = GB_VIDEO_VERTICAL_PIXELS;
@@ -822,9 +837,13 @@ static size_t _GBCoreSavedataClone(struct mCore* core, void** sram) {
 		vf->seek(vf, 0, SEEK_SET);
 		return vf->read(vf, *sram, vf->size(vf));
 	}
-	*sram = malloc(gb->sramSize);
-	memcpy(*sram, gb->memory.sram, gb->sramSize);
-	return gb->sramSize;
+	if (gb->sramSize) {
+		*sram = malloc(gb->sramSize);
+		memcpy(*sram, gb->memory.sram, gb->sramSize);
+		return gb->sramSize;
+	}
+	*sram = NULL;
+	return 0;
 }
 
 static bool _GBCoreSavedataRestore(struct mCore* core, const void* sram, size_t size, bool writeback) {
@@ -1062,7 +1081,7 @@ static bool _GBVLPInit(struct mCore* core) {
 static void _GBVLPDeinit(struct mCore* core) {
 	struct GBCore* gbcore = (struct GBCore*) core;
 	if (gbcore->logContext) {
-		mVideoLogContextDestroy(core, gbcore->logContext);
+		mVideoLogContextDestroy(core, gbcore->logContext, true);
 	}
 	_GBCoreDeinit(core);
 }
@@ -1082,16 +1101,16 @@ static void _GBVLPReset(struct mCore* core) {
 	GBVideoProxyRendererShim(&gb->video, &gbcore->proxyRenderer);
 
 	// Make sure CPU loop never spins
-	GBHalt(gb->cpu);
 	gb->memory.ie = 0;
 	gb->memory.ime = false;
+	GBHalt(gb->cpu);
 }
 
 static bool _GBVLPLoadROM(struct mCore* core, struct VFile* vf) {
 	struct GBCore* gbcore = (struct GBCore*) core;
 	gbcore->logContext = mVideoLogContextCreate(NULL);
 	if (!mVideoLogContextLoad(gbcore->logContext, vf)) {
-		mVideoLogContextDestroy(core, gbcore->logContext);
+		mVideoLogContextDestroy(core, gbcore->logContext, false);
 		gbcore->logContext = NULL;
 		return false;
 	}
@@ -1115,9 +1134,9 @@ static bool _GBVLPLoadState(struct mCore* core, const void* buffer) {
 	GBAudioReset(&gb->audio);
 
 	// Make sure CPU loop never spins
-	GBHalt(gb->cpu);
 	gb->memory.ie = 0;
 	gb->memory.ime = false;
+	GBHalt(gb->cpu);
 
 	return true;
 }

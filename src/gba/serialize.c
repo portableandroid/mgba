@@ -6,6 +6,7 @@
 #include <mgba/internal/gba/serialize.h>
 
 #include <mgba/internal/arm/macros.h>
+#include <mgba/internal/gba/bios.h>
 #include <mgba/internal/gba/io.h>
 
 #include <mgba-util/memory.h>
@@ -14,7 +15,7 @@
 #include <fcntl.h>
 
 const uint32_t GBA_SAVESTATE_MAGIC = 0x01000000;
-const uint32_t GBA_SAVESTATE_VERSION = 0x00000003;
+const uint32_t GBA_SAVESTATE_VERSION = 0x00000004;
 
 mLOG_DEFINE_CATEGORY(GBA_STATE, "GBA Savestate", "gba.serialize");
 
@@ -28,6 +29,7 @@ void GBASerialize(struct GBA* gba, struct GBASerializedState* state) {
 	STORE_32(gba->biosChecksum, 0, &state->biosChecksum);
 	STORE_32(gba->romCrc32, 0, &state->romCrc32);
 	STORE_32(gba->timing.masterCycles, 0, &state->masterCycles);
+	STORE_64LE(gba->timing.globalCycles, 0, &state->globalCycles);
 
 	if (gba->memory.rom) {
 		state->id = ((struct GBACartridge*) gba->memory.rom)->id;
@@ -65,7 +67,9 @@ void GBASerialize(struct GBA* gba, struct GBASerializedState* state) {
 		miscFlags = GBASerializedMiscFlagsFillIrqPending(miscFlags);
 		STORE_32(gba->irqEvent.when - mTimingCurrentTime(&gba->timing), 0, &state->nextIrq);
 	}
+	miscFlags = GBASerializedMiscFlagsSetBlocked(miscFlags, gba->cpuBlocked);
 	STORE_32(miscFlags, 0, &state->miscFlags);
+	STORE_32(gba->biosStall, 0, &state->biosStall);
 
 	GBAMemorySerialize(&gba->memory, state);
 	GBAIOSerialize(gba, state);
@@ -93,7 +97,7 @@ bool GBADeserialize(struct GBA* gba, const struct GBASerializedState* state) {
 		mLOG(GBA_STATE, WARN, "Savestate created using a different version of the BIOS: expected %08X, got %08X", gba->biosChecksum, ucheck);
 		uint32_t pc;
 		LOAD_32(pc, ARM_PC * sizeof(state->cpu.gprs[0]), state->cpu.gprs);
-		if (pc < SIZE_BIOS && pc >= 0x20) {
+		if ((ucheck == GBA_BIOS_CHECKSUM || gba->biosChecksum == GBA_BIOS_CHECKSUM) && pc < SIZE_BIOS && pc >= 0x20) {
 			error = true;
 		}
 	}
@@ -128,6 +132,7 @@ bool GBADeserialize(struct GBA* gba, const struct GBASerializedState* state) {
 	}
 	mTimingClear(&gba->timing);
 	LOAD_32(gba->timing.masterCycles, 0, &state->masterCycles);
+	LOAD_64LE(gba->timing.globalCycles, 0, &state->globalCycles);
 
 	size_t i;
 	for (i = 0; i < 16; ++i) {
@@ -182,6 +187,8 @@ bool GBADeserialize(struct GBA* gba, const struct GBASerializedState* state) {
 		LOAD_32(when, 0, &state->nextIrq);
 		mTimingSchedule(&gba->timing, &gba->irqEvent, when);		
 	}
+	gba->cpuBlocked = GBASerializedMiscFlagsGetBlocked(miscFlags);
+	LOAD_32(gba->biosStall, 0, &state->biosStall);
 
 	GBAVideoDeserialize(&gba->video, state);
 	GBAMemoryDeserialize(&gba->memory, state);

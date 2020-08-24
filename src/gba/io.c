@@ -293,7 +293,7 @@ static const int _isWSpecialRegister[REG_MAX >> 1] = {
 	// Audio
 	1, 1, 1, 0, 1, 0, 1, 0,
 	1, 0, 1, 0, 1, 0, 1, 0,
-	1, 0, 1, 0, 0, 0, 0, 0,
+	0, 0, 1, 0, 0, 0, 0, 0,
 	1, 1, 1, 1, 1, 1, 1, 1,
 	1, 1, 1, 1, 0, 0, 0, 0,
 	// DMA
@@ -429,12 +429,12 @@ void GBAIOWrite(struct GBA* gba, uint32_t address, uint16_t value) {
 		case REG_FIFO_A_LO:
 		case REG_FIFO_B_LO:
 			GBAIOWrite32(gba, address, (gba->memory.io[(address >> 1) + 1] << 16) | value);
-			break;
+			return;
 
 		case REG_FIFO_A_HI:
 		case REG_FIFO_B_HI:
 			GBAIOWrite32(gba, address - 2, gba->memory.io[(address >> 1) - 1] | (value << 16));
-			break;
+			return;
 
 		// DMA
 		case REG_DMA0SAD_LO:
@@ -527,6 +527,8 @@ void GBAIOWrite(struct GBA* gba, uint32_t address, uint16_t value) {
 		case REG_JOY_TRANS_HI:
 			gba->memory.io[REG_JOYSTAT >> 1] |= JOYSTAT_TRANS_BIT;
 			// Fall through
+		case REG_SIODATA32_LO:
+		case REG_SIODATA32_HI:
 		case REG_SIOMLT_SEND:
 		case REG_JOYCNT:
 		case REG_JOYSTAT:
@@ -628,7 +630,7 @@ void GBAIOWrite32(struct GBA* gba, uint32_t address, uint32_t value) {
 		break;
 	case REG_FIFO_A_LO:
 	case REG_FIFO_B_LO:
-		GBAAudioWriteFIFO(&gba->audio, address, value);
+		value = GBAAudioWriteFIFO(&gba->audio, address, value);
 		break;
 	case REG_DMA0SAD_LO:
 		value = GBADMAWriteSAD(gba, 0, value);
@@ -978,6 +980,8 @@ void GBAIODeserialize(struct GBA* gba, const struct GBASerializedState* state) {
 		LOAD_32(gba->memory.dma[i].when, 0, &state->dma[i].when);
 	}
 	GBAAudioWriteSOUNDCNT_X(&gba->audio, gba->memory.io[REG_SOUNDCNT_X >> 1]);
+	gba->sio.siocnt = gba->memory.io[REG_SIOCNT >> 1];
+	GBASIOWriteRCNT(&gba->sio, gba->memory.io[REG_RCNT >> 1]);
 
 	LOAD_32(gba->memory.dmaTransferRegister, 0, &state->dmaTransferRegister);
 	LOAD_32(gba->dmaPC, 0, &state->dmaBlockPC);

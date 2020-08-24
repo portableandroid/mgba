@@ -303,6 +303,9 @@ SettingsView::SettingsView(ConfigController* controller, InputController* inputC
 			continue;
 		}
 		QLocale locale(name.remove(QString("%0-").arg(binaryName)).remove(".qm"));
+		if (locale.language() == QLocale::English) {
+			continue;
+		}
 		m_ui.languages->addItem(locale.nativeLanguageName(), locale);
 		if (locale.bcp47Name() == QLocale().bcp47Name()) {
 			m_ui.languages->setCurrentIndex(m_ui.languages->count() - 1);
@@ -400,6 +403,7 @@ void SettingsView::updateConfig() {
 	saveSetting("showFps", m_ui.showFps);
 	saveSetting("cheatAutoload", m_ui.cheatAutoload);
 	saveSetting("cheatAutosave", m_ui.cheatAutosave);
+	saveSetting("showFilename", m_ui.showFilename);
 	saveSetting("autoload", m_ui.autoload);
 	saveSetting("autosave", m_ui.autosave);
 	saveSetting("logToFile", m_ui.logToFile);
@@ -574,6 +578,7 @@ void SettingsView::reloadConfig() {
 	loadSetting("showFps", m_ui.showFps, true);
 	loadSetting("cheatAutoload", m_ui.cheatAutoload, true);
 	loadSetting("cheatAutosave", m_ui.cheatAutosave, true);
+	loadSetting("showFilename", m_ui.showFilename, false);
 	loadSetting("autoload", m_ui.autoload, true);
 	loadSetting("autosave", m_ui.autosave, false);
 	loadSetting("logToFile", m_ui.logToFile);

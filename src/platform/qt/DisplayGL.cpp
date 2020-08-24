@@ -327,18 +327,12 @@ PainterGL::PainterGL(QWindow* surface, QOpenGLContext* parent, int forceVersion)
 	m_backend->lockAspectRatio = false;
 	m_backend->interframeBlending = false;
 
-	for (int i = 0; i < 3; ++i) {
-		m_free.append(new uint32_t[1024 * 2048]);
+	for (auto& buf : m_buffers) {
+		m_free.append(&buf.front());
 	}
 }
 
 PainterGL::~PainterGL() {
-	while (!m_queue.isEmpty()) {
-		delete[] m_queue.dequeue();
-	}
-	for (auto item : m_free) {
-		delete[] item;
-	}
 	m_gl->makeCurrent(m_surface);
 #if defined(_WIN32) && defined(USE_EPOXY)
 	epoxy_handle_external_wglMakeCurrent();
@@ -493,8 +487,6 @@ void PainterGL::performDraw() {
 	m_backend->resized(m_backend, m_size.width() * r, m_size.height() * r);
 	if (m_buffer) {
 		m_backend->postFrame(m_backend, m_buffer);
-		m_free.append(m_buffer);
-		m_buffer = nullptr;
 	}
 	m_backend->drawFrame(m_backend);
 	m_painter.endNativePainting();
@@ -504,7 +496,7 @@ void PainterGL::performDraw() {
 }
 
 void PainterGL::enqueue(const uint32_t* backing) {
-	m_mutex.lock();
+	QMutexLocker locker(&m_mutex);
 	uint32_t* buffer = nullptr;
 	if (backing) {
 		if (m_free.isEmpty()) {
@@ -512,17 +504,17 @@ void PainterGL::enqueue(const uint32_t* backing) {
 		} else {
 			buffer = m_free.takeLast();
 		}
-		QSize size = m_context->screenDimensions();
-		memcpy(buffer, backing, size.width() * size.height() * BYTES_PER_PIXEL);
+		if (buffer) {
+			QSize size = m_context->screenDimensions();
+			memcpy(buffer, backing, size.width() * size.height() * BYTES_PER_PIXEL);
+		}
 	}
 	m_queue.enqueue(buffer);
-	m_mutex.unlock();
 }
 
 void PainterGL::dequeue() {
-	m_mutex.lock();
+	QMutexLocker locker(&m_mutex);
 	if (m_queue.isEmpty()) {
-		m_mutex.unlock();
 		return;
 	}
 	uint32_t* buffer = m_queue.dequeue();
@@ -530,10 +522,7 @@ void PainterGL::dequeue() {
 		m_free.append(m_buffer);
 		m_buffer = nullptr;
 	}
-	if (buffer) {
-		m_buffer = buffer;
-	}
-	m_mutex.unlock();
+	m_buffer = buffer;
 }
 
 void PainterGL::dequeueAll() {

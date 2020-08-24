@@ -129,6 +129,7 @@ struct mVideoLogContext;
 
 struct GBACore {
 	struct mCore d;
+	struct GBAVideoRenderer dummyRenderer;
 	struct GBAVideoSoftwareRenderer renderer;
 #if defined(BUILD_GLES2) || defined(BUILD_GLES3)
 	struct GBAVideoGLRenderer glRenderer;
@@ -182,6 +183,9 @@ static bool _GBACoreInit(struct mCore* core) {
 	mRTCGenericSourceInit(&core->rtc, core);
 	gba->rtcSource = &core->rtc.d;
 
+	GBAVideoDummyRendererCreate(&gbacore->dummyRenderer);
+	GBAVideoAssociateRenderer(&gba->video, &gbacore->dummyRenderer);
+
 	GBAVideoSoftwareRendererCreate(&gbacore->renderer);
 	gbacore->renderer.outputBuffer = NULL;
 
@@ -215,6 +219,11 @@ static void _GBACoreDeinit(struct mCore* core) {
 	mappedMemoryFree(core->board, sizeof(struct GBA));
 #if !defined(MINIMAL_CORE) || MINIMAL_CORE < 2
 	mDirectorySetDeinit(&core->dirs);
+#endif
+#ifdef USE_DEBUGGERS
+	if (core->symbolTable) {
+		mDebuggerSymbolTableDestroy(core->symbolTable);
+	}
 #endif
 
 	struct GBACore* gbacore = (struct GBACore*) core;
@@ -388,9 +397,9 @@ static void _GBACoreReloadConfigOption(struct mCore* core, const char* option, c
 	}
 }
 
-static void _GBACoreDesiredVideoDimensions(struct mCore* core, unsigned* width, unsigned* height) {
+static void _GBACoreDesiredVideoDimensions(const struct mCore* core, unsigned* width, unsigned* height) {
 #if defined(BUILD_GLES2) || defined(BUILD_GLES3)
-	struct GBACore* gbacore = (struct GBACore*) core;
+	const struct GBACore* gbacore = (const struct GBACore*) core;
 	int scale = gbacore->glRenderer.scale;
 #else
 	UNUSED(core);
@@ -643,7 +652,8 @@ static void _GBACoreReset(struct mCore* core) {
 static void _GBACoreRunFrame(struct mCore* core) {
 	struct GBA* gba = core->board;
 	int32_t frameCounter = gba->video.frameCounter;
-	while (gba->video.frameCounter == frameCounter) {
+	uint32_t startCycle = mTimingCurrentTime(&gba->timing);
+	while (gba->video.frameCounter == frameCounter && mTimingCurrentTime(&gba->timing) - startCycle < VIDEO_TOTAL_LENGTH + VIDEO_HORIZONTAL_LENGTH) {
 		ARMRunLoop(core->cpu);
 	}
 }
@@ -1223,7 +1233,7 @@ static bool _GBAVLPInit(struct mCore* core) {
 static void _GBAVLPDeinit(struct mCore* core) {
 	struct GBACore* gbacore = (struct GBACore*) core;
 	if (gbacore->logContext) {
-		mVideoLogContextDestroy(core, gbacore->logContext);
+		mVideoLogContextDestroy(core, gbacore->logContext, true);
 	}
 	_GBACoreDeinit(core);
 }
@@ -1252,7 +1262,7 @@ static bool _GBAVLPLoadROM(struct mCore* core, struct VFile* vf) {
 	struct GBACore* gbacore = (struct GBACore*) core;
 	gbacore->logContext = mVideoLogContextCreate(NULL);
 	if (!mVideoLogContextLoad(gbacore->logContext, vf)) {
-		mVideoLogContextDestroy(core, gbacore->logContext);
+		mVideoLogContextDestroy(core, gbacore->logContext, false);
 		gbacore->logContext = NULL;
 		return false;
 	}

@@ -13,8 +13,8 @@
 #include <mgba-util/arm-algo.h>
 #include <mgba-util/memory.h>
 
-#define DIRTY_SCANLINE(R, Y) R->scanlineDirty[Y >> 5] |= (1 << (Y & 0x1F))
-#define CLEAN_SCANLINE(R, Y) R->scanlineDirty[Y >> 5] &= ~(1 << (Y & 0x1F))
+#define DIRTY_SCANLINE(R, Y) R->scanlineDirty[Y >> 5] |= (1U << (Y & 0x1F))
+#define CLEAN_SCANLINE(R, Y) R->scanlineDirty[Y >> 5] &= ~(1U << (Y & 0x1F))
 
 static void GBAVideoSoftwareRendererInit(struct GBAVideoRenderer* renderer);
 static void GBAVideoSoftwareRendererDeinit(struct GBAVideoRenderer* renderer);
@@ -519,7 +519,7 @@ static void GBAVideoSoftwareRendererDrawScanline(struct GBAVideoRenderer* render
 		softwareRenderer->nextY = y + 1;
 	}
 
-	bool dirty = softwareRenderer->scanlineDirty[y >> 5] & (1 << (y & 0x1F));
+	bool dirty = softwareRenderer->scanlineDirty[y >> 5] & (1U << (y & 0x1F));
 	if (memcmp(softwareRenderer->nextIo, softwareRenderer->cache[y].io, sizeof(softwareRenderer->nextIo))) {
 		memcpy(softwareRenderer->cache[y].io, softwareRenderer->nextIo, sizeof(softwareRenderer->nextIo));
 		dirty = true;
@@ -760,6 +760,7 @@ static void GBAVideoSoftwareRendererWriteBGCNT(struct GBAVideoSoftwareRenderer* 
 	bg->screenBase = GBARegisterBGCNTGetScreenBase(value) << 11;
 	bg->overflow = GBARegisterBGCNTGetOverflow(value);
 	bg->size = GBARegisterBGCNTGetSize(value);
+	bg->yCache = -1;
 }
 
 static void GBAVideoSoftwareRendererWriteBGX_LO(struct GBAVideoSoftwareBackground* bg, uint16_t value) {
@@ -845,12 +846,10 @@ static void _drawScanline(struct GBAVideoSoftwareRenderer* renderer, int y) {
 				}
 			}
 			for (w = 0; w < renderer->nWindows; ++w) {
-				if (renderer->spriteCyclesRemaining <= 0) {
-					break;
-				}
 				renderer->currentWindow = renderer->windows[w].control;
 				renderer->start = renderer->end;
 				renderer->end = renderer->windows[w].endX;
+				// TODO: partial sprite drawing
 				if (!GBAWindowControlIsObjEnable(renderer->currentWindow.packed) && !GBARegisterDISPCNTIsObjwinEnable(renderer->dispcnt)) {
 					continue;
 				}
@@ -858,6 +857,7 @@ static void _drawScanline(struct GBAVideoSoftwareRenderer* renderer, int y) {
 				int drawn = GBAVideoSoftwareRendererPreprocessSprite(renderer, &sprite->obj, sprite->index, localY);
 				spriteLayers |= drawn << GBAObjAttributesCGetPriority(sprite->obj.c);
 			}
+			renderer->spriteCyclesRemaining -= sprite->cycles;
 			if (renderer->spriteCyclesRemaining <= 0) {
 				break;
 			}
