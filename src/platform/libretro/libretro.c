@@ -2074,6 +2074,7 @@ static void _updateCamera(const uint32_t* buffer, unsigned width, unsigned heigh
 }
 
 static void _startImage(struct mImageSource* image, unsigned w, unsigned h, int colorFormats) {
+#ifndef PORTANDROID
 	UNUSED(image);
 	UNUSED(colorFormats);
 
@@ -2084,14 +2085,18 @@ static void _startImage(struct mImageSource* image, unsigned w, unsigned h, int 
 	imcapWidth = w;
 	imcapHeight = h;
 	cam.start();
+#endif
 }
 
 static void _stopImage(struct mImageSource* image) {
+#ifndef PORTANDROID
 	UNUSED(image);
-	cam.stop();	
+	cam.stop();
+#endif
 }
 
 static void _requestImage(struct mImageSource* image, const void** buffer, size_t* stride, enum mColorFormat* colorFormat) {
+#ifndef PORTANDROID
 	UNUSED(image);
 	if (!camData) {
 		cam.start();
@@ -2109,6 +2114,7 @@ static void _requestImage(struct mImageSource* image, const void** buffer, size_
 	*buffer = &camData[offset];
 	*stride = camStride;
 	*colorFormat = mCOLOR_XRGB8;
+#endif
 }
 
 static int32_t _readTiltX(struct mRotationSource* source) {
