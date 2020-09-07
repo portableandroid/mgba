@@ -13,7 +13,6 @@
 #include <mgba/internal/gba/cheats.h>
 #include <mgba/internal/gba/io.h>
 #include <mgba/internal/gba/overrides.h>
-#include <mgba/internal/gba/rr/rr.h>
 
 #include <mgba-util/patch.h>
 #include <mgba-util/crc32.h>
@@ -52,7 +51,7 @@ static void _triggerIRQ(struct mTiming*, void* user, uint32_t cyclesLate);
 
 #ifdef USE_DEBUGGERS
 static bool _setSoftwareBreakpoint(struct ARMDebugger*, uint32_t address, enum ExecutionMode mode, uint32_t* opcode);
-static bool _clearSoftwareBreakpoint(struct ARMDebugger*, uint32_t address, enum ExecutionMode mode, uint32_t opcode);
+static void _clearSoftwareBreakpoint(struct ARMDebugger*, const struct ARMDebugBreakpoint*);
 #endif
 
 #ifdef FIXED_ROM_BUFFER
@@ -96,7 +95,6 @@ static void GBAInit(void* cpu, struct mCPUComponent* component) {
 	gba->luminanceSource = 0;
 	gba->rtcSource = 0;
 	gba->rumble = 0;
-	gba->rr = 0;
 
 	gba->romVf = 0;
 	gba->biosVf = 0;
@@ -172,7 +170,6 @@ void GBADestroy(struct GBA* gba) {
 	GBAVideoDeinit(&gba->video);
 	GBAAudioDeinit(&gba->audio);
 	GBASIODeinit(&gba->sio);
-	gba->rr = 0;
 	mTimingDeinit(&gba->timing);
 	mCoreCallbacksListDeinit(&gba->coreCallbacks);
 }
@@ -198,13 +195,13 @@ void GBAReset(struct ARMCore* cpu) {
 	cpu->gprs[ARM_SP] = SP_BASE_SYSTEM;
 
 	struct GBA* gba = (struct GBA*) cpu->master;
-	if (!gba->rr || (!gba->rr->isPlaying(gba->rr) && !gba->rr->isRecording(gba->rr))) {
-		gba->memory.savedata.maskWriteback = false;
-		GBASavedataUnmask(&gba->memory.savedata);
-	}
+	gba->memory.savedata.maskWriteback = false;
+	GBASavedataUnmask(&gba->memory.savedata);
 
 	gba->cpuBlocked = false;
 	gba->earlyExit = false;
+	gba->dmaPC = 0;
+	gba->biosStall = 0;
 	if (gba->yankedRomSize) {
 		gba->memory.romSize = gba->yankedRomSize;
 		gba->memory.romMask = toPow2(gba->memory.romSize) - 1;
@@ -283,13 +280,16 @@ static void GBAProcessEvents(struct ARMCore* cpu) {
 		do {
 			int32_t cycles = cpu->cycles;
 			cpu->cycles = 0;
+#ifdef USE_DEBUGGERS
+			gba->timing.globalCycles += cycles;
+#endif
 #ifndef NDEBUG
 			if (cycles < 0) {
 				mLOG(GBA, FATAL, "Negative cycles passed: %i", cycles);
 			}
 #endif
-			nextEvent = mTimingTick(&gba->timing, nextEvent + cycles);
-		} while (gba->cpuBlocked);
+			nextEvent = mTimingTick(&gba->timing, cycles < nextEvent ? nextEvent : cycles);
+		} while (gba->cpuBlocked && !gba->earlyExit);
 
 		cpu->nextEvent = nextEvent;
 		if (cpu->halted) {
@@ -308,11 +308,9 @@ static void GBAProcessEvents(struct ARMCore* cpu) {
 		}
 	}
 	gba->earlyExit = false;
-#ifndef NDEBUG
 	if (gba->cpuBlocked) {
-		mLOG(GBA, FATAL, "CPU is blocked!");
+		cpu->cycles = cpu->nextEvent;
 	}
-#endif
 }
 
 #ifdef USE_DEBUGGERS
@@ -741,13 +739,13 @@ void GBAHitStub(struct ARMCore* cpu, uint32_t opcode) {
 
 void GBAIllegal(struct ARMCore* cpu, uint32_t opcode) {
 	struct GBA* gba = (struct GBA*) cpu->master;
+	if (cpu->executionMode == MODE_THUMB && (opcode & 0xFFC0) == 0xE800) {
+		mLOG(GBA, INFO, "Hit Wii U VC opcode: %08x", opcode);
+		return;
+	}
 	if (!gba->yankedRomSize) {
 		// TODO: More sensible category?
 		mLOG(GBA, WARN, "Illegal opcode: %08x", opcode);
-	}
-	if (cpu->executionMode == MODE_THUMB && (opcode & 0xFFC0) == 0xE800) {
-		mLOG(GBA, DEBUG, "Hit Wii U VC opcode: %08x", opcode);
-		return;
 	}
 #ifdef USE_DEBUGGERS
 	if (gba->debugger) {
@@ -756,11 +754,9 @@ void GBAIllegal(struct ARMCore* cpu, uint32_t opcode) {
 			.type.bp.opcode = opcode
 		};
 		mDebuggerEnter(gba->debugger->d.p, DEBUGGER_ENTER_ILLEGAL_OP, &info);
-	} else
-#endif
-	{
-		ARMRaiseUndefined(cpu);
 	}
+#endif
+	ARMRaiseUndefined(cpu);
 }
 
 void GBABreakpoint(struct ARMCore* cpu, int immediate) {
@@ -820,11 +816,8 @@ void GBAFrameStarted(struct GBA* gba) {
 }
 
 void GBAFrameEnded(struct GBA* gba) {
+	int wasDirty = gba->memory.savedata.dirty;
 	GBASavedataClean(&gba->memory.savedata, gba->video.frameCounter);
-
-	if (gba->rr) {
-		gba->rr->nextFrame(gba->rr);
-	}
 
 	if (gba->cpu->components && gba->cpu->components[CPU_COMPONENT_CHEAT_DEVICE]) {
 		struct mCheatDevice* device = (struct mCheatDevice*) gba->cpu->components[CPU_COMPONENT_CHEAT_DEVICE];
@@ -853,6 +846,9 @@ void GBAFrameEnded(struct GBA* gba) {
 		struct mCoreCallbacks* callbacks = mCoreCallbacksListGetPointer(&gba->coreCallbacks, c);
 		if (callbacks->videoFrameEnded) {
 			callbacks->videoFrameEnded(callbacks->context);
+		}
+		if (callbacks->savedataUpdated && wasDirty && !gba->memory.savedata.dirty) {
+			callbacks->savedataUpdated(callbacks->context);
 		}
 	}
 }
@@ -934,8 +930,7 @@ static bool _setSoftwareBreakpoint(struct ARMDebugger* debugger, uint32_t addres
 	return true;
 }
 
-static bool _clearSoftwareBreakpoint(struct ARMDebugger* debugger, uint32_t address, enum ExecutionMode mode, uint32_t opcode) {
-	GBAClearBreakpoint((struct GBA*) debugger->cpu->master, address, mode, opcode);
-	return true;
+static void _clearSoftwareBreakpoint(struct ARMDebugger* debugger, const struct ARMDebugBreakpoint* breakpoint) {
+	GBAClearBreakpoint((struct GBA*) debugger->cpu->master, breakpoint->d.address, breakpoint->sw.mode, breakpoint->sw.opcode);
 }
 #endif

@@ -16,6 +16,8 @@
 
 #include <mgba-util/memory.h>
 
+mLOG_DEFINE_CATEGORY(GB_VIDEO, "GB Video", "gb.video");
+
 static void GBVideoDummyRendererInit(struct GBVideoRenderer* renderer, enum GBModel model, bool borders);
 static void GBVideoDummyRendererDeinit(struct GBVideoRenderer* renderer);
 static uint8_t GBVideoDummyRendererWriteVideoRegister(struct GBVideoRenderer* renderer, uint16_t address, uint8_t value);
@@ -38,26 +40,8 @@ static void _endMode2(struct mTiming* timing, void* context, uint32_t cyclesLate
 static void _endMode3(struct mTiming* timing, void* context, uint32_t cyclesLate);
 static void _updateFrameCount(struct mTiming* timing, void* context, uint32_t cyclesLate);
 
-static struct GBVideoRenderer dummyRenderer = {
-	.init = GBVideoDummyRendererInit,
-	.deinit = GBVideoDummyRendererDeinit,
-	.writeVideoRegister = GBVideoDummyRendererWriteVideoRegister,
-	.writeSGBPacket = GBVideoDummyRendererWriteSGBPacket,
-	.writeVRAM = GBVideoDummyRendererWriteVRAM,
-	.writeOAM = GBVideoDummyRendererWriteOAM,
-	.writePalette = GBVideoDummyRendererWritePalette,
-	.drawRange = GBVideoDummyRendererDrawRange,
-	.finishScanline = GBVideoDummyRendererFinishScanline,
-	.finishFrame = GBVideoDummyRendererFinishFrame,
-	.enableSGBBorder = GBVideoDummyRendererEnableSGBBorder,
-	.getPixels = GBVideoDummyRendererGetPixels,
-	.putPixels = GBVideoDummyRendererPutPixels,
-};
-
 void GBVideoInit(struct GBVideo* video) {
-	video->renderer = &dummyRenderer;
-	video->renderer->cache = NULL;
-	video->renderer->sgbRenderMode = 0;
+	video->renderer = NULL;
 	video->vram = anonymousMemoryMap(GB_SIZE_VRAM);
 	video->frameskip = 0;
 
@@ -84,12 +68,6 @@ void GBVideoInit(struct GBVideo* video) {
 	video->dmgPalette[11] = 0x0000;
 
 	video->sgbBorders = true;
-
-	video->renderer->sgbCharRam = NULL;
-	video->renderer->sgbMapRam = NULL;
-	video->renderer->sgbPalRam = NULL;
-	video->renderer->sgbAttributes = NULL;
-	video->renderer->sgbAttributeFiles = NULL;
 }
 
 void GBVideoReset(struct GBVideo* video) {
@@ -116,6 +94,12 @@ void GBVideoReset(struct GBVideo* video) {
 		memset(video->renderer->sgbAttributes, 0, 90 * 45);
 		video->sgbCommandHeader = 0;
 		video->sgbBufferIndex = 0;
+	} else {
+		video->renderer->sgbCharRam = NULL;
+		video->renderer->sgbMapRam = NULL;
+		video->renderer->sgbPalRam = NULL;
+		video->renderer->sgbAttributes = NULL;
+		video->renderer->sgbAttributeFiles = NULL;
 	}
 
 	video->palette[0] = video->dmgPalette[0];
@@ -130,6 +114,11 @@ void GBVideoReset(struct GBVideo* video) {
 	video->palette[9 * 4 + 1] = video->dmgPalette[9];
 	video->palette[9 * 4 + 2] = video->dmgPalette[10];
 	video->palette[9 * 4 + 3] = video->dmgPalette[11];
+
+	if (!video->renderer) {
+		mLOG(GB_VIDEO, FATAL, "No renderer associated");
+		return;
+	}
 
 	video->renderer->deinit(video->renderer);
 	video->renderer->init(video->renderer, video->p->model, video->sgbBorders);
@@ -173,15 +162,44 @@ void GBVideoDeinit(struct GBVideo* video) {
 	}
 }
 
+void GBVideoDummyRendererCreate(struct GBVideoRenderer* renderer) {
+	static const struct GBVideoRenderer dummyRenderer = {
+		.init = GBVideoDummyRendererInit,
+		.deinit = GBVideoDummyRendererDeinit,
+		.writeVideoRegister = GBVideoDummyRendererWriteVideoRegister,
+		.writeSGBPacket = GBVideoDummyRendererWriteSGBPacket,
+		.writeVRAM = GBVideoDummyRendererWriteVRAM,
+		.writeOAM = GBVideoDummyRendererWriteOAM,
+		.writePalette = GBVideoDummyRendererWritePalette,
+		.drawRange = GBVideoDummyRendererDrawRange,
+		.finishScanline = GBVideoDummyRendererFinishScanline,
+		.finishFrame = GBVideoDummyRendererFinishFrame,
+		.enableSGBBorder = GBVideoDummyRendererEnableSGBBorder,
+		.getPixels = GBVideoDummyRendererGetPixels,
+		.putPixels = GBVideoDummyRendererPutPixels,
+	};
+	memcpy(renderer, &dummyRenderer, sizeof(*renderer));
+}
+
 void GBVideoAssociateRenderer(struct GBVideo* video, struct GBVideoRenderer* renderer) {
-	video->renderer->deinit(video->renderer);
-	renderer->cache = video->renderer->cache;
-	renderer->sgbRenderMode = video->renderer->sgbRenderMode;
-	renderer->sgbCharRam = video->renderer->sgbCharRam;
-	renderer->sgbMapRam = video->renderer->sgbMapRam;
-	renderer->sgbPalRam = video->renderer->sgbPalRam;
-	renderer->sgbAttributeFiles = video->renderer->sgbAttributeFiles;
-	renderer->sgbAttributes = video->renderer->sgbAttributes;
+	if (video->renderer) {
+		video->renderer->deinit(video->renderer);
+		renderer->cache = video->renderer->cache;
+		renderer->sgbRenderMode = video->renderer->sgbRenderMode;
+		renderer->sgbCharRam = video->renderer->sgbCharRam;
+		renderer->sgbMapRam = video->renderer->sgbMapRam;
+		renderer->sgbPalRam = video->renderer->sgbPalRam;
+		renderer->sgbAttributeFiles = video->renderer->sgbAttributeFiles;
+		renderer->sgbAttributes = video->renderer->sgbAttributes;
+	} else {
+		renderer->cache = NULL;
+		renderer->sgbRenderMode = 0;
+		renderer->sgbCharRam = NULL;
+		renderer->sgbMapRam = NULL;
+		renderer->sgbPalRam = NULL;
+		renderer->sgbAttributeFiles = NULL;
+		renderer->sgbAttributes = NULL;
+	}
 	video->renderer = renderer;
 	renderer->vram = video->vram;
 	video->renderer->init(video->renderer, video->p->model, video->sgbBorders);
@@ -212,6 +230,30 @@ static bool _statIRQAsserted(GBRegisterSTAT stat) {
 		break;
 	}
 	return false;
+}
+
+void GBVideoSkipBIOS(struct GBVideo* video) {
+	video->mode = 1;
+	video->modeEvent.callback = _endMode1;
+
+	int32_t next;
+	if (video->p->model == GB_MODEL_CGB) {
+		video->ly = GB_VIDEO_VERTICAL_PIXELS;
+		video->p->memory.io[REG_LY] = video->ly;
+		video->stat = GBRegisterSTATClearLYC(video->stat);
+		next = 20;
+	} else {
+		video->ly = GB_VIDEO_VERTICAL_TOTAL_PIXELS;
+		video->p->memory.io[REG_LY] = 0;
+		next = 56;
+	}
+	video->stat = GBRegisterSTATSetMode(video->stat, video->mode);
+
+	video->p->memory.io[REG_IF] |= (1 << GB_IRQ_VBLANK);
+	GBUpdateIRQs(video->p);
+	video->p->memory.io[REG_STAT] = video->stat;
+	mTimingDeschedule(&video->p->timing, &video->modeEvent);
+	mTimingSchedule(&video->p->timing, &video->modeEvent, next);
 }
 
 void _endMode0(struct mTiming* timing, void* context, uint32_t cyclesLate) {
@@ -355,6 +397,7 @@ void _updateFrameCount(struct mTiming* timing, void* context, uint32_t cyclesLat
 	GBFrameEnded(video->p);
 	mCoreSyncPostFrame(video->p->sync);
 	++video->frameCounter;
+	video->p->earlyExit = true;
 
 	GBFrameStarted(video->p);
 }
@@ -861,13 +904,17 @@ void GBVideoDeserialize(struct GBVideo* video, const struct GBSerializedState* s
 	}
 
 	uint32_t when;
+	LOAD_32LE(when, 0, &state->video.nextMode);
 	if (!GBSerializedVideoFlagsIsNotModeEventScheduled(flags)) {
-		LOAD_32LE(when, 0, &state->video.nextMode);
 		mTimingSchedule(&video->p->timing, &video->modeEvent, when);
+	} else {
+		video->modeEvent.when = when + mTimingCurrentTime(&video->p->timing);
 	}
+	LOAD_32LE(when, 0, &state->video.nextFrame);
 	if (!GBSerializedVideoFlagsIsNotFrameEventScheduled(flags)) {
-		LOAD_32LE(when, 0, &state->video.nextFrame);
 		mTimingSchedule(&video->p->timing, &video->frameEvent, when);
+	} else {
+		video->frameEvent.when = when + mTimingCurrentTime(&video->p->timing);
 	}
 
 	video->renderer->deinit(video->renderer);

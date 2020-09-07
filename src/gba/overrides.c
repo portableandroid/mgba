@@ -54,6 +54,11 @@ static const struct GBACartridgeOverride _overrides[] = {
 	{ "PSAJ", SAVEDATA_FLASH1M, HW_NONE, IDLE_LOOP_NONE, false },
 	{ "PSAE", SAVEDATA_FLASH1M, HW_NONE, IDLE_LOOP_NONE, false },
 
+	// e-Reader
+	{ "PEAJ", SAVEDATA_FLASH1M, HW_EREADER, IDLE_LOOP_NONE },
+	{ "PSAJ", SAVEDATA_FLASH1M, HW_EREADER, IDLE_LOOP_NONE },
+	{ "PSAE", SAVEDATA_FLASH1M, HW_EREADER, IDLE_LOOP_NONE },
+
 	// Final Fantasy Tactics Advance
 	{ "AFXE", SAVEDATA_FLASH512, HW_NONE, 0x8000428, false },
 
@@ -337,6 +342,10 @@ void GBAOverrideApply(struct GBA* gba, const struct GBACartridgeOverride* overri
 
 		if (override->hardware & HW_TILT) {
 			GBAHardwareInitTilt(&gba->memory.hw);
+		}
+
+		if (override->hardware & HW_EREADER) {
+			GBAHardwareInitEReader(&gba->memory.hw);
 		}
 
 		if (override->hardware & HW_GB_PLAYER_DETECTION) {

@@ -13,8 +13,8 @@
 #include <mgba-util/arm-algo.h>
 #include <mgba-util/memory.h>
 
-#define DIRTY_SCANLINE(R, Y) R->scanlineDirty[Y >> 5] |= (1 << (Y & 0x1F))
-#define CLEAN_SCANLINE(R, Y) R->scanlineDirty[Y >> 5] &= ~(1 << (Y & 0x1F))
+#define DIRTY_SCANLINE(R, Y) R->scanlineDirty[Y >> 5] |= (1U << (Y & 0x1F))
+#define CLEAN_SCANLINE(R, Y) R->scanlineDirty[Y >> 5] &= ~(1U << (Y & 0x1F))
 
 static void GBAVideoSoftwareRendererInit(struct GBAVideoRenderer* renderer);
 static void GBAVideoSoftwareRendererDeinit(struct GBAVideoRenderer* renderer);
@@ -122,6 +122,7 @@ static void GBAVideoSoftwareRendererReset(struct GBAVideoRenderer* renderer) {
 	softwareRenderer->oamMax = 0;
 
 	softwareRenderer->mosaic = 0;
+	softwareRenderer->greenswap = false;
 	softwareRenderer->nextY = 0;
 
 	softwareRenderer->objOffsetX = 0;
@@ -178,6 +179,9 @@ static uint16_t GBAVideoSoftwareRendererWriteVideoRegister(struct GBAVideoRender
 		value &= 0xFFF7;
 		softwareRenderer->dispcnt = value;
 		GBAVideoSoftwareRendererUpdateDISPCNT(softwareRenderer);
+		break;
+	case REG_GREENSWP:
+		softwareRenderer->greenswap = value & 1;
 		break;
 	case REG_BG0CNT:
 		value &= 0xDFFF;
@@ -389,9 +393,6 @@ static uint16_t GBAVideoSoftwareRendererWriteVideoRegister(struct GBAVideoRender
 	case REG_MOSAIC:
 		softwareRenderer->mosaic = value;
 		break;
-	case REG_GREENSWP:
-		mLOG(GBA_VIDEO, STUB, "Stub video register write: 0x%03X", address);
-		break;
 	default:
 		mLOG(GBA_VIDEO, GAME_ERROR, "Invalid video register: 0x%03X", address);
 	}
@@ -519,7 +520,7 @@ static void GBAVideoSoftwareRendererDrawScanline(struct GBAVideoRenderer* render
 		softwareRenderer->nextY = y + 1;
 	}
 
-	bool dirty = softwareRenderer->scanlineDirty[y >> 5] & (1 << (y & 0x1F));
+	bool dirty = softwareRenderer->scanlineDirty[y >> 5] & (1U << (y & 0x1F));
 	if (memcmp(softwareRenderer->nextIo, softwareRenderer->cache[y].io, sizeof(softwareRenderer->nextIo))) {
 		memcpy(softwareRenderer->cache[y].io, softwareRenderer->nextIo, sizeof(softwareRenderer->nextIo));
 		dirty = true;
@@ -675,6 +676,19 @@ static void GBAVideoSoftwareRendererDrawScanline(struct GBAVideoRenderer* render
 		}
 	}
 
+	if (softwareRenderer->greenswap) {
+		for (x = 0; x < GBA_VIDEO_HORIZONTAL_PIXELS; x += 4) {
+			row[x] = softwareRenderer->row[x] & (M_COLOR_RED | M_COLOR_BLUE);
+			row[x] |= softwareRenderer->row[x + 1] & M_COLOR_GREEN;
+			row[x + 1] = softwareRenderer->row[x + 1] & (M_COLOR_RED | M_COLOR_BLUE);
+			row[x + 1] |= softwareRenderer->row[x] & M_COLOR_GREEN;
+			row[x + 2] = softwareRenderer->row[x + 2] & (M_COLOR_RED | M_COLOR_BLUE);
+			row[x + 2] |= softwareRenderer->row[x + 3] & M_COLOR_GREEN;
+			row[x + 3] = softwareRenderer->row[x + 3] & (M_COLOR_RED | M_COLOR_BLUE);
+			row[x + 3] |= softwareRenderer->row[x + 2] & M_COLOR_GREEN;
+
+		}
+	} else {
 #ifdef COLOR_16_BIT
 	for (x = 0; x < GBA_VIDEO_HORIZONTAL_PIXELS; x += 4) {
 		row[x] = softwareRenderer->row[x];
@@ -685,6 +699,7 @@ static void GBAVideoSoftwareRendererDrawScanline(struct GBAVideoRenderer* render
 #else
 	memcpy(row, softwareRenderer->row, GBA_VIDEO_HORIZONTAL_PIXELS * sizeof(*row));
 #endif
+}
 }
 
 static void GBAVideoSoftwareRendererFinishFrame(struct GBAVideoRenderer* renderer) {
@@ -701,16 +716,16 @@ static void GBAVideoSoftwareRendererFinishFrame(struct GBAVideoRenderer* rendere
 	softwareRenderer->bg[3].sy = softwareRenderer->bg[3].refy;
 
 	if (softwareRenderer->bg[0].enabled > 0) {
-		softwareRenderer->bg[0].enabled = 4;
+		softwareRenderer->bg[0].enabled = 3;
 	}
 	if (softwareRenderer->bg[1].enabled > 0) {
-		softwareRenderer->bg[1].enabled = 4;
+		softwareRenderer->bg[1].enabled = 3;
 	}
 	if (softwareRenderer->bg[2].enabled > 0) {
-		softwareRenderer->bg[2].enabled = 4;
+		softwareRenderer->bg[2].enabled = 3;
 	}
 	if (softwareRenderer->bg[3].enabled > 0) {
-		softwareRenderer->bg[3].enabled = 4;
+		softwareRenderer->bg[3].enabled = 3;
 	}
 }
 
@@ -737,7 +752,7 @@ static void _enableBg(struct GBAVideoSoftwareRenderer* renderer, int bg, bool ac
 	} else if (!wasActive && active) {
 		if (renderer->nextY == 0 || GBARegisterDISPCNTGetMode(renderer->dispcnt) > 2) {
 			// TODO: Investigate in more depth how switching background works in different modes
-			renderer->bg[bg].enabled = 4;
+			renderer->bg[bg].enabled = 3;
 		} else {
 			renderer->bg[bg].enabled = 1;
 		}
@@ -760,6 +775,7 @@ static void GBAVideoSoftwareRendererWriteBGCNT(struct GBAVideoSoftwareRenderer* 
 	bg->screenBase = GBARegisterBGCNTGetScreenBase(value) << 11;
 	bg->overflow = GBARegisterBGCNTGetOverflow(value);
 	bg->size = GBARegisterBGCNTGetSize(value);
+	bg->yCache = -1;
 }
 
 static void GBAVideoSoftwareRendererWriteBGX_LO(struct GBAVideoSoftwareBackground* bg, uint16_t value) {
@@ -811,7 +827,7 @@ static void GBAVideoSoftwareRendererWriteBLDCNT(struct GBAVideoSoftwareRenderer*
 
 #define TEST_LAYER_ENABLED(X) \
 	!renderer->d.disableBG[X] && \
-	(renderer->bg[X].enabled == 4 && \
+	(renderer->bg[X].enabled == 3 && \
 	(GBAWindowControlIsBg ## X ## Enable(renderer->currentWindow.packed) || \
 	(GBARegisterDISPCNTIsObjwinEnable(renderer->dispcnt) && GBAWindowControlIsBg ## X ## Enable (renderer->objwin.packed))) && \
 	renderer->bg[X].priority == priority)
@@ -856,12 +872,7 @@ static void _drawScanline(struct GBAVideoSoftwareRenderer* renderer, int y) {
 				int drawn = GBAVideoSoftwareRendererPreprocessSprite(renderer, &sprite->obj, sprite->index, localY);
 				spriteLayers |= drawn << GBAObjAttributesCGetPriority(sprite->obj.c);
 			}
-			int cycles = GBAVideoObjSizes[GBAObjAttributesAGetShape(sprite->obj.a) * 4 + GBAObjAttributesBGetSize(sprite->obj.b)][0];
-			if (GBAObjAttributesAIsTransformed(sprite->obj.a)) {
-				cycles <<= GBAObjAttributesAGetDoubleSize(sprite->obj.a) + 1;
-				cycles += 10;
-			}
-			renderer->spriteCyclesRemaining -= cycles;
+			renderer->spriteCyclesRemaining -= sprite->cycles;
 			if (renderer->spriteCyclesRemaining <= 0) {
 				break;
 			}
@@ -923,19 +934,19 @@ static void _drawScanline(struct GBAVideoSoftwareRenderer* renderer, int y) {
 		renderer->bg[3].sy += renderer->bg[3].dmy;
 	}
 
-	if (renderer->bg[0].enabled > 0 && renderer->bg[0].enabled < 4) {
+	if (renderer->bg[0].enabled > 0 && renderer->bg[0].enabled < 3) {
 		++renderer->bg[0].enabled;
 		DIRTY_SCANLINE(renderer, y);
 	}
-	if (renderer->bg[1].enabled > 0 && renderer->bg[1].enabled < 4) {
+	if (renderer->bg[1].enabled > 0 && renderer->bg[1].enabled < 3) {
 		++renderer->bg[1].enabled;
 		DIRTY_SCANLINE(renderer, y);
 	}
-	if (renderer->bg[2].enabled > 0 && renderer->bg[2].enabled < 4) {
+	if (renderer->bg[2].enabled > 0 && renderer->bg[2].enabled < 3) {
 		++renderer->bg[2].enabled;
 		DIRTY_SCANLINE(renderer, y);
 	}
-	if (renderer->bg[3].enabled > 0 && renderer->bg[3].enabled < 4) {
+	if (renderer->bg[3].enabled > 0 && renderer->bg[3].enabled < 3) {
 		++renderer->bg[3].enabled;
 		DIRTY_SCANLINE(renderer, y);
 	}

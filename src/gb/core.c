@@ -40,7 +40,7 @@ static const struct mCoreChannelInfo _GBAudioChannels[] = {
 
 static const struct mCoreMemoryBlock _GBMemoryBlocks[] = {
 	{ -1, "mem", "All", "All", 0, 0x10000, 0x10000, mCORE_MEMORY_VIRTUAL },
-	{ GB_REGION_CART_BANK0, "cart0", "ROM Bank", "Game Pak (32kiB)", GB_BASE_CART_BANK0, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 * 2, 0x800000, mCORE_MEMORY_READ | mCORE_MEMORY_MAPPED, 511, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 },
+	{ GB_REGION_CART_BANK0, "cart0", "ROM Bank", "Game Pak (32kiB)", GB_BASE_CART_BANK0, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 * 2, 0x800000, mCORE_MEMORY_READ | mCORE_MEMORY_WORM | mCORE_MEMORY_MAPPED, 511, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 },
 	{ GB_REGION_VRAM, "vram", "VRAM", "Video RAM (8kiB)", GB_BASE_VRAM, GB_BASE_VRAM + GB_SIZE_VRAM, GB_SIZE_VRAM, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED },
 	{ GB_REGION_EXTERNAL_RAM, "sram", "SRAM", "External RAM (8kiB)", GB_BASE_EXTERNAL_RAM, GB_BASE_EXTERNAL_RAM + GB_SIZE_EXTERNAL_RAM, GB_SIZE_EXTERNAL_RAM * 4, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED, 3 },
 	{ GB_REGION_WORKING_RAM_BANK0, "wram", "WRAM", "Working RAM (8kiB)", GB_BASE_WORKING_RAM_BANK0, GB_BASE_WORKING_RAM_BANK0 + GB_SIZE_WORKING_RAM_BANK0 * 2 , GB_SIZE_WORKING_RAM_BANK0 * 2, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED },
@@ -51,7 +51,7 @@ static const struct mCoreMemoryBlock _GBMemoryBlocks[] = {
 
 static const struct mCoreMemoryBlock _GBCMemoryBlocks[] = {
 	{ -1, "mem", "All", "All", 0, 0x10000, 0x10000, mCORE_MEMORY_VIRTUAL },
-	{ GB_REGION_CART_BANK0, "cart0", "ROM Bank", "Game Pak (32kiB)", GB_BASE_CART_BANK0, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 * 2, 0x800000, mCORE_MEMORY_READ | mCORE_MEMORY_MAPPED, 511, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 },
+	{ GB_REGION_CART_BANK0, "cart0", "ROM Bank", "Game Pak (32kiB)", GB_BASE_CART_BANK0, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 * 2, 0x800000, mCORE_MEMORY_READ | mCORE_MEMORY_WORM | mCORE_MEMORY_MAPPED, 511, GB_BASE_CART_BANK0 + GB_SIZE_CART_BANK0 },
 	{ GB_REGION_VRAM, "vram", "VRAM", "Video RAM (8kiB)", GB_BASE_VRAM, GB_BASE_VRAM + GB_SIZE_VRAM, GB_SIZE_VRAM * 2, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED, 1 },
 	{ GB_REGION_EXTERNAL_RAM, "sram", "SRAM", "External RAM (8kiB)", GB_BASE_EXTERNAL_RAM, GB_BASE_EXTERNAL_RAM + GB_SIZE_EXTERNAL_RAM, GB_SIZE_EXTERNAL_RAM * 4, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED, 3 },
 	{ GB_REGION_WORKING_RAM_BANK0, "wram", "WRAM", "Working RAM (8kiB)", GB_BASE_WORKING_RAM_BANK0, GB_BASE_WORKING_RAM_BANK0 + GB_SIZE_WORKING_RAM_BANK0 * 2, GB_SIZE_WORKING_RAM_BANK0 * 8, mCORE_MEMORY_RW | mCORE_MEMORY_MAPPED, 7, GB_BASE_WORKING_RAM_BANK0 + GB_SIZE_WORKING_RAM_BANK0 },
@@ -63,9 +63,12 @@ static const struct mCoreMemoryBlock _GBCMemoryBlocks[] = {
 struct mVideoLogContext;
 struct GBCore {
 	struct mCore d;
+	struct GBVideoRenderer dummyRenderer;
 	struct GBVideoSoftwareRenderer renderer;
+#ifndef MINIMAL_CORE
 	struct GBVideoProxyRenderer proxyRenderer;
 	struct mVideoLogContext* logContext;
+#endif
 	struct mCoreCallbacks logCallbacks;
 	uint8_t keys;
 	struct mCPUComponent* components[CPU_COMPONENT_MAX];
@@ -90,6 +93,9 @@ static bool _GBCoreInit(struct mCore* core) {
 	gbcore->overrides = NULL;
 	gbcore->debuggerPlatform = NULL;
 	gbcore->cheatDevice = NULL;
+#ifndef MINIMAL_CORE
+	gbcore->logContext = NULL;
+#endif
 
 	GBCreate(gb);
 	memset(gbcore->components, 0, sizeof(gbcore->components));
@@ -98,8 +104,15 @@ static bool _GBCoreInit(struct mCore* core) {
 	mRTCGenericSourceInit(&core->rtc, core);
 	gb->memory.rtc = &core->rtc.d;
 
+	GBVideoDummyRendererCreate(&gbcore->dummyRenderer);
+	GBVideoAssociateRenderer(&gb->video, &gbcore->dummyRenderer);
+
 	GBVideoSoftwareRendererCreate(&gbcore->renderer);
 	gbcore->renderer.outputBuffer = NULL;
+
+#ifndef MINIMAL_CORE
+	gbcore->proxyRenderer.logger = NULL;
+#endif
 
 	gbcore->keys = 0;
 	gb->keySource = &gbcore->keys;
@@ -116,8 +129,10 @@ static void _GBCoreDeinit(struct mCore* core) {
 	GBDestroy(core->board);
 	mappedMemoryFree(core->cpu, sizeof(struct SM83Core));
 	mappedMemoryFree(core->board, sizeof(struct GB));
-#if defined USE_DEBUGGERS && (!defined(MINIMAL_CORE) || MINIMAL_CORE < 2)
+#if !defined(MINIMAL_CORE) || MINIMAL_CORE < 2
 	mDirectorySetDeinit(&core->dirs);
+#endif
+#ifdef USE_DEBUGGERS
 	if (core->symbolTable) {
 		mDebuggerSymbolTableDestroy(core->symbolTable);
 	}
@@ -206,6 +221,8 @@ static void _GBCoreLoadConfig(struct mCore* core, const struct mCoreConfig* conf
 	mCoreConfigCopyValue(&core->config, config, "gb.model");
 	mCoreConfigCopyValue(&core->config, config, "sgb.model");
 	mCoreConfigCopyValue(&core->config, config, "cgb.model");
+	mCoreConfigCopyValue(&core->config, config, "cgb.hybridModel");
+	mCoreConfigCopyValue(&core->config, config, "cgb.sgbModel");
 	mCoreConfigCopyValue(&core->config, config, "useCgbColors");
 	mCoreConfigCopyValue(&core->config, config, "allowOpposingDirections");
 
@@ -277,8 +294,8 @@ static void _GBCoreReloadConfigOption(struct mCore* core, const char* option, co
 	}
 }
 
-static void _GBCoreDesiredVideoDimensions(struct mCore* core, unsigned* width, unsigned* height) {
-	struct GB* gb = core->board;
+static void _GBCoreDesiredVideoDimensions(const struct mCore* core, unsigned* width, unsigned* height) {
+	const struct GB* gb = core->board;
 	if (gb && (!(gb->model & GB_MODEL_SGB) || !gb->video.sgbBorders)) {
 		*width = GB_VIDEO_HORIZONTAL_PIXELS;
 		*height = GB_VIDEO_VERTICAL_PIXELS;
@@ -422,19 +439,42 @@ static void _GBCoreReset(struct mCore* core) {
 		if (GBOverrideFind(gbcore->overrides, &override) || (doColorOverride && GBOverrideColorFind(&override))) {
 			GBOverrideApply(gb, &override);
 		}
-	}
 
-	const char* modelGB = mCoreConfigGetValue(&core->config, "gb.model");
-	const char* modelCGB = mCoreConfigGetValue(&core->config, "cgb.model");
-	const char* modelSGB = mCoreConfigGetValue(&core->config, "sgb.model");
-	if (modelGB || modelCGB || modelSGB) {
-		GBDetectModel(gb);
-		if (gb->model == GB_MODEL_DMG && modelGB) {
-			gb->model = GBNameToModel(modelGB);
-		} else if ((gb->model & GB_MODEL_CGB) && modelCGB) {
-			gb->model = GBNameToModel(modelCGB);
-		} else if ((gb->model & GB_MODEL_SGB) && modelSGB) {
-			gb->model = GBNameToModel(modelSGB);
+		const char* modelGB = mCoreConfigGetValue(&core->config, "gb.model");
+		const char* modelSGB = mCoreConfigGetValue(&core->config, "sgb.model");
+		const char* modelCGB = mCoreConfigGetValue(&core->config, "cgb.model");
+		const char* modelCGBHybrid = mCoreConfigGetValue(&core->config, "cgb.hybridModel");
+		const char* modelCGBSGB = mCoreConfigGetValue(&core->config, "cgb.sgbModel");
+		if (modelGB || modelCGB || modelSGB || modelCGBHybrid || modelCGBSGB) {
+			int models = GBValidModels(gb->memory.rom);
+			switch (models) {
+			case GB_MODEL_SGB | GB_MODEL_MGB:
+				if (modelSGB) {
+					gb->model = GBNameToModel(modelSGB);
+				}
+				break;
+			case GB_MODEL_MGB:
+				if (modelGB) {
+					gb->model = GBNameToModel(modelGB);
+				}
+				break;
+			case GB_MODEL_MGB | GB_MODEL_CGB:
+				if (modelCGBHybrid) {
+					gb->model = GBNameToModel(modelCGBHybrid);
+				}
+				break;
+			case GB_MODEL_SGB | GB_MODEL_CGB: // TODO: Do these even exist?
+			case GB_MODEL_MGB | GB_MODEL_SGB | GB_MODEL_CGB:
+				if (modelCGBSGB) {
+					gb->model = GBNameToModel(modelCGBSGB);
+				}
+				break;
+			case GB_MODEL_CGB:
+				if (modelCGB) {
+					gb->model = GBNameToModel(modelCGB);
+				}
+				break;
+			}
 		}
 	}
 
@@ -1066,7 +1106,7 @@ static bool _GBVLPInit(struct mCore* core) {
 static void _GBVLPDeinit(struct mCore* core) {
 	struct GBCore* gbcore = (struct GBCore*) core;
 	if (gbcore->logContext) {
-		mVideoLogContextDestroy(core, gbcore->logContext);
+		mVideoLogContextDestroy(core, gbcore->logContext, true);
 	}
 	_GBCoreDeinit(core);
 }
@@ -1086,16 +1126,16 @@ static void _GBVLPReset(struct mCore* core) {
 	GBVideoProxyRendererShim(&gb->video, &gbcore->proxyRenderer);
 
 	// Make sure CPU loop never spins
-	GBHalt(gb->cpu);
 	gb->memory.ie = 0;
 	gb->memory.ime = false;
+	GBHalt(gb->cpu);
 }
 
 static bool _GBVLPLoadROM(struct mCore* core, struct VFile* vf) {
 	struct GBCore* gbcore = (struct GBCore*) core;
 	gbcore->logContext = mVideoLogContextCreate(NULL);
 	if (!mVideoLogContextLoad(gbcore->logContext, vf)) {
-		mVideoLogContextDestroy(core, gbcore->logContext);
+		mVideoLogContextDestroy(core, gbcore->logContext, false);
 		gbcore->logContext = NULL;
 		return false;
 	}
@@ -1119,9 +1159,9 @@ static bool _GBVLPLoadState(struct mCore* core, const void* buffer) {
 	GBAudioReset(&gb->audio);
 
 	// Make sure CPU loop never spins
-	GBHalt(gb->cpu);
 	gb->memory.ie = 0;
 	gb->memory.ime = false;
+	GBHalt(gb->cpu);
 
 	return true;
 }

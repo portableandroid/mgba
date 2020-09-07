@@ -27,7 +27,8 @@ Features
 - Screenshot support.
 - Cheat code support.
 - 9 savestate slots. Savestates are also viewable as screenshots.
-- Video and GIF recording.
+- Video, GIF, WebP, and APNG recording.
+- e-Reader support.
 - Remappable controls for both keyboards and gamepads.
 - Loading from ZIP and 7z files.
 - IPS, UPS and BPS patch support.
@@ -50,25 +51,27 @@ The following mappers are fully supported:
 - MBC5+Rumble
 - MBC7
 - Wisdom Tree (unlicensed)
+- Pokémon Jade/Diamond (unlicensed)
+- BBD (unlicensed MBC5-like)
+- Hitek (unlicensed MBC5-like)
 
 The following mappers are partially supported:
 
-- MBC6
+- MBC6 (missing flash memory write support)
 - MMM01
 - Pocket Cam
-- TAMA5
-- HuC-1
-- HuC-3
+- TAMA5 (missing RTC support)
+- HuC-1 (missing IR support)
+- HuC-3 (missing RTC and IR support)
 
 ### Planned features
 
 - Networked multiplayer link cable support.
 - Dolphin/JOY bus link cable support.
-- M4A audio mixing, for higher quality sound than hardware.
+- MP2k audio mixing, for higher quality sound than hardware.
 - Re-recording support for tool-assist runs.
 - Lua support for scripting.
 - A comprehensive debug suite.
-- e-Reader support.
 - Wireless adapter support.
 
 Supported Platforms
@@ -158,6 +161,8 @@ Note that you should not do a `make install` on macOS, as it will not work prope
 
 #### Windows developer building
 
+##### MSYS2
+
 To build on Windows for development, using MSYS2 is recommended. Follow the installation steps found on their [website](https://msys2.github.io). Make sure you're running the 32-bit version ("MSYS2 MinGW 32-bit") (or the 64-bit version "MSYS2 MinGW 64-bit" if you want to build for x86_64) and run this additional command (including the braces) to install the needed dependencies (please note that this involves downloading over 1100MiB of packages, so it will take a long time):
 
 For x86 (32 bit) builds:
@@ -181,6 +186,20 @@ Then finally build it by running these commands:
 	make
 
 Please note that this build of mGBA for Windows is not suitable for distribution, due to the scattering of DLLs it needs to run, but is perfect for development. However, if distributing such a build is desired (e.g. for testing on machines that don't have the MSYS2 environment installed), running `cpack -G ZIP` will prepare a zip file with all of the necessary DLLs.
+
+##### Visual Studio
+
+To build using Visual Studio is a similarly complicated setup. To begin you will need to install [vcpkg](https://github.com/Microsoft/vcpkg). After installing vcpkg you will need to install several additional packages:
+
+    vcpkg install ffmpeg[vpx,x264] libepoxy libpng libzip sdl2 sqlite3
+
+Note that this installation won't support hardware accelerated video encoding on Nvidia hardware. If you care about this, you'll need to install CUDA beforehand, and then substitute `ffmpeg[vpx,x264,nvcodec]` into the previous command.
+
+You will also need to install Qt. Unfortunately due to Qt being owned and run by an ailing company as opposed to a reasonable organization there is no longer an offline open source edition installer for the latest version, so you'll need to either fall back to an [old version installer](https://download.qt.io/official_releases/qt/5.12/5.12.9/qt-opensource-windows-x86-5.12.9.exe) (which wants you to create an otherwise-useless account, but you can bypass temporarily setting an invalid proxy or otherwise disabling networking), use the online installer (which requires an account regardless), or use vcpkg to build it (slowly). None of these are great options. For the installer you'll want to install the applicable MSVC versions. Note that the offline installers do not support MSVC 2019. For vcpkg you'll want to install it as such, which will take quite a while, especially on quad core or less computers:
+
+    vcpkg install qt5-base qt5-multimedia
+
+Next, open Visual Studio, select Clone Repository, and enter `https://github.com/mgba-emu/mgba.git`. When Visual Studio is done cloning, go to File > CMake and open the CMakeLists.txt file at the root of the checked out repository. From there, mGBA can be developed in Visual Studio similarly to other Visual Studio CMake projects.
 
 #### Toolchain building
 
@@ -206,7 +225,7 @@ mGBA has no hard dependencies, however, the following optional dependencies are 
 - SDL: for a more basic frontend and gamepad support in the Qt frontend. SDL 2 is recommended, but 1.2 is supported.
 - zlib and libpng: for screenshot support and savestate-in-PNG support.
 - libedit: for command-line debugger support.
-- ffmpeg or libav: for video and GIF recording.
+- ffmpeg or libav: for video, GIF, WebP, and APNG recording.
 - libzip or zlib: for loading ROMs stored in zip files.
 - SQLite3: for game databases.
 - libelf: for ELF loading.
@@ -234,7 +253,7 @@ mGBA is Copyright © 2013 – 2020 Jeffrey Pfau. It is distributed under the [Mo
 
 mGBA contains the following third-party libraries:
 
-- [inih](https://github.com/benhoyt/inih), which is copyright © 2009 Ben Hoyt and used under a BSD 3-clause license.
+- [inih](https://github.com/benhoyt/inih), which is copyright © 2009 – 2020 Ben Hoyt and used under a BSD 3-clause license.
 - [blip-buf](https://code.google.com/archive/p/blip-buf), which is copyright © 2003 – 2009 Shay Green and used under a Lesser GNU Public License.
 - [LZMA SDK](http://www.7-zip.org/sdk.html), which is public domain.
 - [MurmurHash3](https://github.com/aappleby/smhasher) implementation by Austin Appleby, which is public domain.
