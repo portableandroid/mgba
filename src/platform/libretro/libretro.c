@@ -41,6 +41,10 @@ FS_Archive sdmcArchive;
 
 #include "libretro_core_options.h"
 
+#ifdef PORTANDROID
+#include "emu_retro.h"
+#endif
+
 #define SAMPLES 512
 #define RUMBLE_PWM 35
 #define EVENT_RATE 60
@@ -1307,7 +1311,12 @@ int16_t cycleturbo(bool x/*turbo A*/, bool y/*turbo B*/, bool l2/*turbo L*/, boo
 
 void retro_run(void) {
 	uint16_t keys;
-
+#ifdef PORTANDROID
+	if(cb_settings.frame_skip_direct) {
+        mCoreConfigSetIntValue(&core->config, "frameskip", cb_context.video_skip);
+        core->reloadConfigOption(core, "frameskip", NULL);
+    }
+#endif
 	_initSensors();
 	inputPollCallback();
 
@@ -1380,10 +1389,17 @@ void retro_run(void) {
 	core->desiredVideoDimensions(core, &width, &height);
 
 #if defined(COLOR_16_BIT) && defined(COLOR_5_6_5)
+#ifdef PORTANDROID
+    if (videoPostProcess && !cb_context.video_skip) {
+        videoPostProcess(width, height);
+        videoCallback(ppOutputBuffer, width, height, VIDEO_WIDTH_MAX * sizeof(color_t));
+    } else
+#else
 	if (videoPostProcess) {
 		videoPostProcess(width, height);
 		videoCallback(ppOutputBuffer, width, height, VIDEO_WIDTH_MAX * sizeof(color_t));
 	} else
+#endif
 #endif
 		videoCallback(outputBuffer, width, height, VIDEO_WIDTH_MAX * sizeof(color_t));
 

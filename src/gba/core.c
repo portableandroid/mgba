@@ -344,6 +344,9 @@ static void _GBACoreReloadConfigOption(struct mCore* core, const char* option, c
 	if (strcmp("frameskip", option) == 0) {
 		if (mCoreConfigGetIntValue(config, "frameskip", &core->opts.frameskip)) {
 			gba->video.frameskip = core->opts.frameskip;
+#ifdef PORTANDROID
+			gba->video.frameskipCounter = core->opts.frameskip;
+#endif
 		}
 		return;
 	}

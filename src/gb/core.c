@@ -280,6 +280,10 @@ static void _GBCoreReloadConfigOption(struct mCore* core, const char* option, co
 	if (strcmp("frameskip", option) == 0) {
 		if (mCoreConfigGetIntValue(config, "frameskip", &core->opts.frameskip)) {
 			gb->video.frameskip = core->opts.frameskip;
+#ifdef PORTANDROID
+			gb->video.frameskipCounter = core->opts.frameskip;
+#endif
+
 		}
 		return;
 	}
