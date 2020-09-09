@@ -76,8 +76,11 @@ static void _requestImage(struct mImageSource*, const void** buffer, size_t* str
 static int32_t _readTiltX(struct mRotationSource* source);
 static int32_t _readTiltY(struct mRotationSource* source);
 static int32_t _readGyroZ(struct mRotationSource* source);
-
+#ifdef PORTANDROID
+struct mCore* core;
+#else
 static struct mCore* core;
+#endif
 static color_t* outputBuffer = NULL;
 static void* data;
 static size_t dataSize;
