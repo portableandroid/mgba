@@ -13,8 +13,8 @@ CXX_GUARD_START
 #include <mgba/core/core.h>
 #include <mgba/internal/gb/gb.h>
 
-extern const uint32_t GB_SAVESTATE_MAGIC;
-extern const uint32_t GB_SAVESTATE_VERSION;
+extern MGBA_EXPORT const uint32_t GBSavestateMagic;
+extern MGBA_EXPORT const uint32_t GBSavestateVersion;
 
 mLOG_DECLARE_CATEGORY(GB_STATE);
 
@@ -157,9 +157,11 @@ mLOG_DECLARE_CATEGORY(GB_STATE);
  *   | bit 3: IME
  *   | bit 4: Is HDMA active?
  *   | bits 5 - 7:  Active RTC register
- * | 0x00196 - 0x00197: Reserved (leave zero)
+ * | 0x00196: Cartridge bus value
+ * | 0x00197: Reserved (leave zero)
  * 0x00198 - 0x0019F: Global cycle counter
- * 0x001A0 - 0x0025F: Reserved (leave zero)
+ * 0x001A0 - 0x001A1: Program counter for last cartridge read
+ * 0x001A2 - 0x0025F: Reserved (leave zero)
  * 0x00260 - 0x002FF: OAM
  * 0x00300 - 0x0037F: I/O memory
  * 0x00380 - 0x003FE: HRAM
@@ -401,12 +403,14 @@ struct GBSerializedState {
 		};
 
 		GBSerializedMemoryFlags flags;
-		uint16_t reserved;
+		uint8_t cartBus;
+		uint8_t reserved;
 	} memory;
 
 	uint64_t globalCycles;
 
-	uint32_t reserved[48];
+	uint16_t cartBusPc;
+	uint16_t reserved[95];
 
 	uint8_t oam[GB_SIZE_OAM];
 
@@ -436,6 +440,9 @@ struct GBSerializedState {
 
 bool GBDeserialize(struct GB* gb, const struct GBSerializedState* state);
 void GBSerialize(struct GB* gb, struct GBSerializedState* state);
+
+void GBSGBSerialize(struct GB* gb, struct GBSerializedState* state);
+void GBSGBDeserialize(struct GB* gb, const struct GBSerializedState* state);
 
 CXX_GUARD_END
 

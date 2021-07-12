@@ -83,6 +83,20 @@ OverrideView::OverrideView(ConfigController* config, QWidget* parent)
 			m_gbColors[colorId] = color.rgb() | 0xFF000000;
 		});
 	}
+
+	const GBColorPreset* colorPresets;
+	size_t nPresets = GBColorPresetList(&colorPresets);
+	for (size_t i = 0; i < nPresets; ++i) {
+		m_ui.colorPreset->addItem(QString(colorPresets[i].name));
+	}
+	connect(m_ui.colorPreset, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [this, colorPresets](int n) {
+		const GBColorPreset* preset = &colorPresets[n];
+		for (int colorId = 0; colorId < 12; ++colorId) {
+			uint32_t color = preset->colors[colorId] | 0xFF000000;
+			m_colorPickers[colorId].setColor(color);
+			m_gbColors[colorId] = color;
+		}
+	});
 #endif
 
 #ifndef M_CORE_GBA
@@ -134,16 +148,23 @@ void OverrideView::updateOverrides() {
 	if (!m_controller) {
 		return;
 	}
+	bool hasOverride = false;
 #ifdef M_CORE_GBA
 	if (m_ui.tabWidget->currentWidget() == m_ui.tabGBA) {
-		std::unique_ptr<GBAOverride> gba(new GBAOverride);
+		auto gba = std::make_unique<GBAOverride>();
 		memset(gba->override.id, 0, 4);
 		gba->override.savetype = static_cast<SavedataType>(m_ui.savetype->currentIndex() - 1);
 		gba->override.hardware = HW_NO_OVERRIDE;
 		gba->override.idleLoop = IDLE_LOOP_NONE;
 		gba->override.mirroring = false;
+		gba->override.vbaBugCompat = false;
+		gba->vbaBugCompatSet = false;
 
+		if (gba->override.savetype != SAVEDATA_AUTODETECT) {
+			hasOverride = true;
+		}
 		if (!m_ui.hwAutodetect->isChecked()) {
+			hasOverride = true;
 			gba->override.hardware = HW_NONE;
 			if (m_ui.hwRTC->isChecked()) {
 				gba->override.hardware |= HW_RTC;
@@ -162,17 +183,23 @@ void OverrideView::updateOverrides() {
 			}
 		}
 		if (m_ui.hwGBPlayer->isChecked()) {
+			hasOverride = true;
 			gba->override.hardware |= HW_GB_PLAYER_DETECTION;
+		}
+		if (m_ui.vbaBugCompat->checkState() != Qt::PartiallyChecked) {
+			hasOverride = true;
+			gba->vbaBugCompatSet = true;
+			gba->override.vbaBugCompat = m_ui.vbaBugCompat->isChecked();
 		}
 
 		bool ok;
 		uint32_t parsedIdleLoop = m_ui.idleLoop->text().toInt(&ok, 16);
 		if (ok) {
+			hasOverride = true;
 			gba->override.idleLoop = parsedIdleLoop;
 		}
 
-		if (gba->override.savetype != SAVEDATA_AUTODETECT || gba->override.hardware != HW_NO_OVERRIDE ||
-		    gba->override.idleLoop != IDLE_LOOP_NONE) {
+		if (hasOverride) {
 			m_controller->setOverride(std::move(gba));
 		} else {
 			m_controller->clearOverride();
@@ -181,16 +208,14 @@ void OverrideView::updateOverrides() {
 #endif
 #ifdef M_CORE_GB
 	if (m_ui.tabWidget->currentWidget() == m_ui.tabGB) {
-		std::unique_ptr<GBOverride> gb(new GBOverride);
+		auto gb = std::make_unique<GBOverride>();
 		gb->override.mbc = static_cast<GBMemoryBankControllerType>(m_ui.mbc->currentData().toInt());
 		gb->override.model = static_cast<GBModel>(m_ui.gbModel->currentData().toInt());
-		bool hasColor = false;
+		hasOverride = gb->override.mbc != GB_MBC_AUTODETECT || gb->override.model != GB_MODEL_AUTODETECT;
 		for (int i = 0; i < 12; ++i) {
 			gb->override.gbColors[i] = m_gbColors[i];
-			hasColor = hasColor || (m_gbColors[i] & 0xFF000000);
+			hasOverride = hasOverride || (m_gbColors[i] & 0xFF000000);
 		}
-		bool hasOverride = gb->override.mbc != GB_MBC_AUTODETECT || gb->override.model != GB_MODEL_AUTODETECT;
-		hasOverride = hasOverride || hasColor;
 		if (hasOverride) {
 			m_controller->setOverride(std::move(gb));
 		} else {
@@ -209,7 +234,7 @@ void OverrideView::gameStarted() {
 
 	switch (thread->core->platform(thread->core)) {
 #ifdef M_CORE_GBA
-	case PLATFORM_GBA: {
+	case mPLATFORM_GBA: {
 		m_ui.tabWidget->setCurrentWidget(m_ui.tabGBA);
 		GBA* gba = static_cast<GBA*>(thread->core->board);
 		m_ui.savetype->setCurrentIndex(gba->memory.savedata.type + 1);
@@ -219,6 +244,7 @@ void OverrideView::gameStarted() {
 		m_ui.hwTilt->setChecked(gba->memory.hw.devices & HW_TILT);
 		m_ui.hwRumble->setChecked(gba->memory.hw.devices & HW_RUMBLE);
 		m_ui.hwGBPlayer->setChecked(gba->memory.hw.devices & HW_GB_PLAYER_DETECTION);
+		m_ui.vbaBugCompat->setChecked(gba->vbaBugCompat);
 
 		if (gba->idleLoop != IDLE_LOOP_NONE) {
 			m_ui.idleLoop->setText(QString::number(gba->idleLoop, 16));
@@ -229,7 +255,7 @@ void OverrideView::gameStarted() {
 	}
 #endif
 #ifdef M_CORE_GB
-	case PLATFORM_GB: {
+	case mPLATFORM_GB: {
 		m_ui.tabWidget->setCurrentWidget(m_ui.tabGB);
 		GB* gb = static_cast<GB*>(thread->core->board);
 		int index = m_ui.mbc->findData(gb->memory.mbcType);
@@ -247,7 +273,7 @@ void OverrideView::gameStarted() {
 		break;
 	}
 #endif
-	case PLATFORM_NONE:
+	case mPLATFORM_NONE:
 		break;
 	}
 
@@ -263,6 +289,7 @@ void OverrideView::gameStopped() {
 	m_ui.tabWidget->setEnabled(true);
 	m_ui.savetype->setCurrentIndex(0);
 	m_ui.idleLoop->clear();
+	m_ui.vbaBugCompat->setCheckState(Qt::PartiallyChecked);
 
 	m_ui.mbc->setCurrentIndex(0);
 	m_ui.gbModel->setCurrentIndex(0);

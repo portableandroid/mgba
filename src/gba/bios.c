@@ -284,23 +284,28 @@ static void _MidiKey2Freq(struct GBA* gba) {
 
 static void _Div(struct GBA* gba, int32_t num, int32_t denom) {
 	struct ARMCore* cpu = gba->cpu;
-	if (denom != 0 && (denom != -1 || num != INT32_MIN)) {
-		div_t result = div(num, denom);
-		cpu->gprs[0] = result.quot;
-		cpu->gprs[1] = result.rem;
-		cpu->gprs[3] = abs(result.quot);
-	} else if (denom == 0) {
-		mLOG(GBA_BIOS, GAME_ERROR, "Attempting to divide %i by zero!", num);
+	if (denom == 0) {
+		if (num == 0 || num == -1 || num == 1) {
+			mLOG(GBA_BIOS, GAME_ERROR, "Attempting to divide %i by zero!", num);
+		} else {
+			mLOG(GBA_BIOS, FATAL, "Attempting to divide %i by zero!", num);
+		}
 		// If abs(num) > 1, this should hang, but that would be painful to
-		// emulate in HLE, and no game will get into a state where it hangs...
+		// emulate in HLE, and no game will get into a state under normal
+		// operation where it hangs...
 		cpu->gprs[0] = (num < 0) ? -1 : 1;
 		cpu->gprs[1] = num;
 		cpu->gprs[3] = 1;
-	} else {
+	} else if (denom == -1 && num == INT32_MIN) {
 		mLOG(GBA_BIOS, GAME_ERROR, "Attempting to divide INT_MIN by -1!");
 		cpu->gprs[0] = INT32_MIN;
 		cpu->gprs[1] = 0;
 		cpu->gprs[3] = INT32_MIN;
+	} else {
+		div_t result = div(num, denom);
+		cpu->gprs[0] = result.quot;
+		cpu->gprs[1] = result.rem;
+		cpu->gprs[3] = abs(result.quot);
 	}
 	int loops = clz32(denom) - clz32(num);
 	if (loops < 1) {
@@ -528,7 +533,7 @@ void GBASwi16(struct ARMCore* cpu, int immediate) {
 		break;
 	case GBA_SWI_LZ77_UNCOMP_WRAM:
 	case GBA_SWI_LZ77_UNCOMP_VRAM:
-		if (cpu->gprs[0] < BASE_WORKING_RAM) {
+		if (!(cpu->gprs[0] & 0x0E000000)) {
 			mLOG(GBA_BIOS, GAME_ERROR, "Bad LZ77 source");
 			break;
 		}
@@ -544,7 +549,7 @@ void GBASwi16(struct ARMCore* cpu, int immediate) {
 		}
 		break;
 	case GBA_SWI_HUFFMAN_UNCOMP:
-		if (cpu->gprs[0] < BASE_WORKING_RAM) {
+		if (!(cpu->gprs[0] & 0x0E000000)) {
 			mLOG(GBA_BIOS, GAME_ERROR, "Bad Huffman source");
 			break;
 		}
@@ -561,7 +566,7 @@ void GBASwi16(struct ARMCore* cpu, int immediate) {
 		break;
 	case GBA_SWI_RL_UNCOMP_WRAM:
 	case GBA_SWI_RL_UNCOMP_VRAM:
-		if (cpu->gprs[0] < BASE_WORKING_RAM) {
+		if (!(cpu->gprs[0] & 0x0E000000)) {
 			mLOG(GBA_BIOS, GAME_ERROR, "Bad RL source");
 			break;
 		}
@@ -579,7 +584,7 @@ void GBASwi16(struct ARMCore* cpu, int immediate) {
 	case GBA_SWI_DIFF_8BIT_UNFILTER_WRAM:
 	case GBA_SWI_DIFF_8BIT_UNFILTER_VRAM:
 	case GBA_SWI_DIFF_16BIT_UNFILTER:
-		if (cpu->gprs[0] < BASE_WORKING_RAM) {
+		if (!(cpu->gprs[0] & 0x0E000000)) {
 			mLOG(GBA_BIOS, GAME_ERROR, "Bad UnFilter source");
 			break;
 		}
@@ -667,6 +672,13 @@ static void _unLz77(struct GBA* gba, int width) {
 				while (bytes--) {
 					if (remaining) {
 						--remaining;
+					} else {
+						mLOG(GBA_BIOS, GAME_ERROR, "Improperly compressed LZ77 data at %08X. "
+						     "This will lead to a buffer overrun at %08X and may crash on hardware.",
+						     cpu->gprs[0], cpu->gprs[1]);
+						if (gba->vbaBugCompat) {
+							break;
+						}
 					}
 					if (width == 2) {
 						byte = (int16_t) cpu->memory.load16(cpu, disp & ~1, 0);

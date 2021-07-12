@@ -70,7 +70,7 @@ void GBAVideoReset(struct GBAVideo* video) {
 	} else {
 		// TODO: Verify exact scanline on hardware
 		video->vcount = 0x7E;
-		nextEvent = 170;
+		nextEvent = 117;
 	}
 	video->p->memory.io[REG_VCOUNT >> 1] = video->vcount;
 
@@ -126,6 +126,16 @@ void GBAVideoAssociateRenderer(struct GBAVideo* video, struct GBAVideoRenderer* 
 	renderer->vram = video->vram;
 	renderer->oam = &video->oam;
 	video->renderer->init(video->renderer);
+	video->renderer->reset(video->renderer);
+	renderer->writeVideoRegister(renderer, REG_DISPCNT, video->p->memory.io[REG_DISPCNT >> 1]);
+	renderer->writeVideoRegister(renderer, REG_GREENSWP, video->p->memory.io[REG_GREENSWP >> 1]);
+	int address;
+	for (address = REG_BG0CNT; address < 0x56; address += 2) {
+		if (address == 0x4E) {
+			continue;
+		}
+		renderer->writeVideoRegister(renderer, address, video->p->memory.io[address >> 1]);
+	}
 }
 
 void _midHblank(struct mTiming* timing, void* context, uint32_t cyclesLate) {
@@ -149,9 +159,6 @@ void _startHdraw(struct mTiming* timing, void* context, uint32_t cyclesLate) {
 	video->p->memory.io[REG_VCOUNT >> 1] = video->vcount;
 
 	if (video->vcount < GBA_VIDEO_VERTICAL_PIXELS) {
-		if (video->frameskipCounter <= 0) {
-			video->renderer->drawScanline(video->renderer, video->vcount);
-		}
 		video->shouldStall = 1;
 	}
 
@@ -203,6 +210,9 @@ void _startHblank(struct mTiming* timing, void* context, uint32_t cyclesLate) {
 	// Begin Hblank
 	GBARegisterDISPSTAT dispstat = video->p->memory.io[REG_DISPSTAT >> 1];
 	dispstat = GBARegisterDISPSTATFillInHblank(dispstat);
+	if (video->vcount < GBA_VIDEO_VERTICAL_PIXELS && video->frameskipCounter <= 0) {
+		video->renderer->drawScanline(video->renderer, video->vcount);
+	}
 
 	if (video->vcount < GBA_VIDEO_VERTICAL_PIXELS) {
 		GBADMARunHblank(video->p, -cyclesLate);

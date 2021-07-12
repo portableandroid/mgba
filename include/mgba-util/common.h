@@ -55,15 +55,15 @@ typedef intptr_t ssize_t;
 #define strdup _strdup
 #define lseek _lseek
 #define O_ACCMODE (O_RDONLY|O_WRONLY|O_RDWR)
-#elif defined(__wii__)
-#include <sys/time.h>
-typedef intptr_t ssize_t;
 #else
-#if !defined(__CELLOS_LV2__) && !defined(PS2)
+#if !defined(PS2)
 #include <strings.h>
 #endif
 #include <unistd.h>
 #include <sys/time.h>
+#endif
+#ifdef GEKKO
+typedef intptr_t ssize_t;
 #endif
 
 #ifdef PSP2
@@ -119,7 +119,7 @@ typedef intptr_t ssize_t;
 #endif
 
 #if defined(_3DS) || defined(GEKKO) || defined(PSP2)
-// newlib does not support %z properly by default
+// newlib doesn't support %z properly by default
 #define PRIz ""
 #elif defined(_MSC_VER)
 #define PRIz "I"

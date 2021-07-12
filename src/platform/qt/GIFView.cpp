@@ -54,7 +54,7 @@ void GIFView::startRecording() {
 		FFmpegEncoderSetVideo(&m_encoder, "apng", 0, m_ui.frameskip->value());
 	} else {
 		FFmpegEncoderSetContainer(&m_encoder, "gif");
-	FFmpegEncoderSetVideo(&m_encoder, "gif", 0, m_ui.frameskip->value());
+		FFmpegEncoderSetVideo(&m_encoder, "gif", 0, m_ui.frameskip->value());
 	}
 	FFmpegEncoderSetLooping(&m_encoder, m_ui.loop->isChecked());
 	if (!FFmpegEncoderOpen(&m_encoder, m_filename.toUtf8().constData())) {
@@ -94,11 +94,12 @@ void GIFView::setFilename(const QString& filename) {
 	if (!FFmpegEncoderIsOpen(&m_encoder)) {
 		m_ui.start->setEnabled(!filename.isEmpty());
 		if (filename.endsWith(".gif")) {
-			m_ui.fmtGif->setChecked(Qt::Checked);
+			m_ui.fmtGif->setChecked(true);
 		} else if (filename.endsWith(".png") || filename.endsWith(".apng")) {
-			m_ui.fmtApng->setChecked(Qt::Checked);
+			m_ui.fmtApng->setChecked(true);
 		} else if (filename.endsWith(".webp")) {
-			m_ui.fmtWebP->setChecked(Qt::Checked);
+			m_ui.fmtWebP->setChecked(true);
+		}
 	}
 }
 

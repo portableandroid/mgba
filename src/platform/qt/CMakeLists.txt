@@ -22,7 +22,7 @@ endif()
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-find_package(Qt5 COMPONENTS Core Widgets OpenGL Network Multimedia)
+find_package(Qt5 COMPONENTS Core Widgets Network Multimedia)
 
 if(NOT BUILD_GL AND NOT BUILD_GLES2)
 	message(WARNING "OpenGL is recommended to build the Qt port")
@@ -100,8 +100,10 @@ set(SOURCE_FILES
 	PaletteView.cpp
 	PlacementControl.cpp
 	RegisterView.cpp
+	ReportView.cpp
 	ROMInfo.cpp
 	RotatedHeaderView.cpp
+	SaveConverter.cpp
 	SavestateButton.cpp
 	SensorView.cpp
 	SettingsView.cpp
@@ -125,6 +127,7 @@ set(UI_FILES
 	BattleChipView.ui
 	CheatsView.ui
 	DebuggerConsole.ui
+	DolphinConnector.ui
 	FrameView.ui
 	GIFView.ui
 	IOViewer.ui
@@ -139,7 +142,9 @@ set(UI_FILES
 	PaletteView.ui
 	PlacementControl.ui
 	PrinterView.ui
+	ReportView.ui
 	ROMInfo.ui
+	SaveConverter.ui
 	SensorView.ui
 	SettingsView.ui
 	ShaderSelector.ui
@@ -151,6 +156,7 @@ set(GBA_SRC
 	BattleChipModel.cpp
 	BattleChipUpdater.cpp
 	BattleChipView.cpp
+	DolphinConnector.cpp
 	GBAOverride.cpp)
 
 set(GB_SRC
@@ -159,7 +165,7 @@ set(GB_SRC
 	PrinterView.cpp)
 
 set(QT_LIBRARIES)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS},libqt5widgets5,libqt5opengl5")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS},libqt5widgets5")
 
 set(AUDIO_SRC)
 if(BUILD_SDL)
@@ -257,7 +263,9 @@ if(Qt5LinguistTools_FOUND)
 	file(GLOB TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ts/${BINARY_NAME}-*.ts")
 	if(UPDATE_TRANSLATIONS)
 		qt5_create_translation(TRANSLATION_FILES ${SOURCE_FILES} ${UI_FILES} ${TS_FILES} OPTIONS -locations absolute -no-obsolete)
+		list(REMOVE_ITEM TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ts/${BINARY_NAME}-template.ts")
 	else()
+		list(REMOVE_ITEM TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ts/${BINARY_NAME}-template.ts")
 		qt5_add_translation(TRANSLATION_FILES ${TS_FILES})
 	endif()
 	set(QT_QM_FILES)
@@ -293,7 +301,7 @@ endif()
 
 list(APPEND QT_LIBRARIES Qt5::Widgets Qt5::Network)
 if(BUILD_GL OR BUILD_GLES2 OR BUILD_EPOXY)
-	list(APPEND QT_LIBRARIES Qt5::OpenGL ${OPENGL_LIBRARY} ${OPENGLES2_LIBRARY})
+	list(APPEND QT_LIBRARIES ${OPENGL_LIBRARY} ${OPENGLES2_LIBRARY})
 endif()
 if(QT_STATIC)
 	find_library(QTPCRE NAMES qtpcre2 qtpcre)
@@ -322,10 +330,7 @@ install(TARGETS ${BINARY_NAME}-qt
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT ${BINARY_NAME}-qt
 	BUNDLE DESTINATION Applications COMPONENT ${BINARY_NAME}-qt)
 if(UNIX AND NOT APPLE)
-	find_program(DESKTOP_FILE_INSTALL desktop-file-install)
-	if(DESKTOP_FILE_INSTALL)
-		install(CODE "execute_process(COMMAND ${DESKTOP_FILE_INSTALL} \"${CMAKE_SOURCE_DIR}/res/mgba-qt.desktop\" --dir \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/applications/\")" COMPONENT ${BINARY_NAME}-qt)
-	endif()
+	install(FILES ${CMAKE_SOURCE_DIR}/res/mgba-qt.desktop DESTINATION share/applications COMPONENT ${BINARY_NAME}-qt)
 endif()
 if(UNIX)
 	install(FILES ${CMAKE_SOURCE_DIR}/doc/mgba-qt.6 DESTINATION ${MANDIR}/man6 COMPONENT ${BINARY_NAME}-qt)

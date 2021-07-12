@@ -283,7 +283,11 @@ static void* _loadPNGState(struct mCore* core, struct VFile* vf, struct mStateEx
 	success = success && PNGReadFooter(png, end);
 	PNGReadClose(png, info, end);
 
-	if (success) {
+	if (!success) {
+		free(pixels);
+		mappedMemoryFree(state, stateSize);
+		return NULL;
+	} else if (extdata) {
 		struct mStateExtdataItem item = {
 			.size = width * height * 4,
 			.data = pixels,
@@ -292,8 +296,6 @@ static void* _loadPNGState(struct mCore* core, struct VFile* vf, struct mStateEx
 		mStateExtdataPut(extdata, EXTDATA_SCREENSHOT, &item);
 	} else {
 		free(pixels);
-		mappedMemoryFree(state, stateSize);
-		return 0;
 	}
 	return state;
 }
@@ -355,13 +357,7 @@ bool mCoreSaveStateNamed(struct mCore* core, struct VFile* vf, int flags) {
 	if (flags & SAVESTATE_METADATA) {
 		uint64_t* creationUsec = malloc(sizeof(*creationUsec));
 		if (creationUsec) {
-#if defined(PS2)
-			clock_t currentClock = ps2_clock();
-			if (currentClock) {
-				uint64_t usec = currentClock;
-				STORE_64LE(usec, 0, creationUsec);
-			}
-#elif !defined(_MSC_VER)
+#if !defined(_MSC_VER)
 			struct timeval tv;
 			if (!gettimeofday(&tv, 0)) {
 				uint64_t usec = tv.tv_usec;

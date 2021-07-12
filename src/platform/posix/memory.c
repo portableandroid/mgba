@@ -18,14 +18,6 @@
 #ifndef DISABLE_ANON_MMAP
 #include <sys/mman.h>
 
-#ifndef MAP_ANONYMOUS
-#define MAP_ANONYMOUS 0x20
-#endif
-
-#ifndef MAP_ANON
-#define MAP_ANON MAP_ANONYMOUS
-#endif
-
 void* anonymousMemoryMap(size_t size) {
 	return mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 }

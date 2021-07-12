@@ -167,9 +167,9 @@ static void* _vfdMap(struct VFile* vf, size_t size, int flags) {
 
 static void _vfdUnmap(struct VFile* vf, void* memory, size_t size) {
 	UNUSED(size);
+	size_t i;
 	struct VFileFD* vfd = (struct VFileFD*) vf;
 	FlushViewOfFile(memory, size);
-	size_t i;
 	for (i = 0; i < HandleMappingListSize(&vfd->handles); ++i) {
 		if (HandleMappingListGetPointer(&vfd->handles, i)->mapping == memory) {
 			UnmapViewOfFile(memory);
@@ -200,7 +200,7 @@ static bool _vfdSync(struct VFile* vf, void* buffer, size_t size) {
 	UNUSED(size);
 	struct VFileFD* vfd = (struct VFileFD*) vf;
 #ifndef _WIN32
-#if defined(__HAIKU__) || defined(ANDROID)
+#if defined(__HAIKU__) || defined(ANDROID) || defined(EMSCRIPTEN)
 	futimens(vfd->fd, NULL);
 #else
 	futimes(vfd->fd, NULL);
