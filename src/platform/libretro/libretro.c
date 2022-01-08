@@ -45,8 +45,12 @@ FS_Archive sdmcArchive;
 #ifdef PORTANDROID
 #include "emu_retro.h"
 #endif
-
-#define SAMPLES 512
+#define GB_SAMPLES 512
+#define SAMPLE_RATE 32768
+/* An alpha factor of 1/180 is *somewhat* equivalent
+ * to calculating the average for the last 180
+ * frames, or 3 seconds of runtime... */
+#define SAMPLES_PER_FRAME_MOVING_AVG_ALPHA (1.0f / 180.0f)
 #define RUMBLE_PWM 35
 #define EVENT_RATE 60
 
@@ -86,6 +90,9 @@ struct mCore* core;
 static struct mCore* core;
 #endif
 static color_t* outputBuffer = NULL;
+static int16_t *audioSampleBuffer = NULL;
+static size_t audioSampleBufferSize;
+static float audioSamplesPerFrameAvg;
 static void* data;
 static size_t dataSize;
 static void* savedata;
@@ -127,6 +134,10 @@ static bool envVarsUpdated;
 static int32_t tiltX = 0;
 static int32_t tiltY = 0;
 static int32_t gyroZ = 0;
+static bool audioLowPassEnabled = false;
+static int32_t audioLowPassRange = 0;
+static int32_t audioLowPassLeftPrev = 0;
+static int32_t audioLowPassRightPrev = 0;
 
 static const int keymap[] = {
 	RETRO_DEVICE_ID_JOYPAD_A,
@@ -253,6 +264,62 @@ static void _loadFrameskipSettings(struct mCoreOptions *opts) {
 	/* (Re)initialise frameskipping, if required */
 	if (opts || (frameskipType != oldFrameskipType)) {
 		_initFrameskip();
+	}
+}
+
+/* Audio post processing */
+static void _audioLowPassFilter(int16_t *buffer, int count) {
+
+	int samples  = count;
+	int16_t *out = buffer;
+
+	/* Restore previous samples */
+	int32_t audioLowPassLeft  = audioLowPassLeftPrev;
+	int32_t audioLowPassRight = audioLowPassRightPrev;
+
+	/* Single-pole low-pass filter (6 dB/octave) */
+	int32_t factorA = audioLowPassRange;
+	int32_t factorB = 0x10000 - factorA;
+
+	do {
+		/* Apply low-pass filter */
+		audioLowPassLeft  = (audioLowPassLeft  * factorA) + (*out       * factorB);
+		audioLowPassRight = (audioLowPassRight * factorA) + (*(out + 1) * factorB);
+
+		/* 16.16 fixed point */
+		audioLowPassLeft  >>= 16;
+		audioLowPassRight >>= 16;
+
+		/* Update sound buffer */
+		*out++ = (int16_t) audioLowPassLeft;
+		*out++ = (int16_t) audioLowPassRight;
+	} while (--samples);
+
+	/* Save last samples for next frame */
+	audioLowPassLeftPrev  = audioLowPassLeft;
+	audioLowPassRightPrev = audioLowPassRight;
+}
+
+static void _loadAudioLowPassFilterSettings(void) {
+
+	struct retro_variable var;
+	audioLowPassEnabled = false;
+	audioLowPassRange = (60 * 0x10000) / 100;
+
+	var.key = "mgba_audio_low_pass_filter";
+	var.value = 0;
+
+	if (environCallback(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+		if (strcmp(var.value, "enabled") == 0) {
+			audioLowPassEnabled = true;
+		}
+	}
+
+	var.key = "mgba_audio_low_pass_range";
+	var.value = 0;
+
+	if (environCallback(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+		audioLowPassRange = (strtol(var.value, NULL, 10) * 0x10000) / 100;
 	}
 }
 
@@ -1138,6 +1205,12 @@ static void _reloadSettings(void) {
 		mCoreConfigSetDefaultIntValue(&core->config, "sgb.borders", strcmp(var.value, "ON") == 0);
 	}
 
+	var.key = "mgba_gb_colors_preset";
+	var.value = 0;
+	if (environCallback(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+		mCoreConfigSetDefaultIntValue(&core->config, "gb.colors", strtol(var.value, NULL, 10));
+	}
+
 	_updateGbPal();
 #endif
 
@@ -1160,14 +1233,10 @@ static void _reloadSettings(void) {
 		mCoreConfigSetDefaultIntValue(&core->config, "sgb.borders", strcmp(var.value, "ON") == 0);
 		}
 #endif
-
-    _loadFrameskipSettings(&opts);
-//	var.key = "mgba_frameskip";
-//	var.value = 0;
-//	if (environCallback(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
-//		opts.frameskip = strtol(var.value, NULL, 10);
-//
-//	}
+#ifndef PORTANDROID
+	_loadFrameskipSettings(&opts);
+#endif
+	_loadAudioLowPassFilterSettings();
 
 	var.key = "mgba_idle_optimization";
 	var.value = 0;
@@ -1229,7 +1298,8 @@ void retro_set_environment(retro_environment_t env)
 	}
 #endif
 
-	libretro_set_core_options(environCallback);
+	bool categoriesSupported;
+	libretro_set_core_options(environCallback, &categoriesSupported);
 }
 
 void retro_set_video_refresh(retro_video_refresh_t video) {
@@ -1266,7 +1336,7 @@ void retro_get_system_info(struct retro_system_info* info) {
 #ifndef GIT_VERSION
 #define GIT_VERSION ""
 #endif
-	info->library_version = GIT_VERSION;
+	info->library_version = "0.9.2" GIT_VERSION;
 	info->library_name = "mGBA";
 	info->block_extract = false;
 }
@@ -1289,7 +1359,7 @@ void retro_get_system_av_info(struct retro_system_av_info* info) {
 
 	info->geometry.aspect_ratio = width / (double) height;
 	info->timing.fps = core->frequency(core) / (float) core->frameCycles(core);
-	info->timing.sample_rate = 32768;
+	info->timing.sample_rate = SAMPLE_RATE;
 }
 
 void retro_init(void) {
@@ -1400,6 +1470,13 @@ void retro_deinit(void) {
 	_deinitPostProcessing();
 #endif
 
+	if (audioSampleBuffer) {
+		free(audioSampleBuffer);
+		audioSampleBuffer = NULL;
+	}
+	audioSampleBufferSize = 0;
+	audioSamplesPerFrameAvg = 0.0f;
+
 	if (sensorStateCallback) {
 		sensorStateCallback(0, RETRO_SENSOR_ACCELEROMETER_DISABLE, EVENT_RATE);
 		sensorStateCallback(0, RETRO_SENSOR_GYROSCOPE_DISABLE, EVENT_RATE);
@@ -1413,6 +1490,11 @@ void retro_deinit(void) {
 	luxSensorEnabled = false;
 	sensorsInitDone = false;
 	useBitmasks = false;
+
+	audioLowPassEnabled = false;
+	audioLowPassRange = 0;
+	audioLowPassLeftPrev = 0;
+	audioLowPassRightPrev = 0;
 }
 
 static int turboclock = 0;
@@ -1473,14 +1555,10 @@ void retro_run(void) {
 			mCoreConfigSetIntValue(&core->config, "allowOpposingDirections", strcmp(var.value, "yes") == 0);
 			core->reloadConfigOption(core, "allowOpposingDirections", NULL);
 			}
-
-    _loadFrameskipSettings(NULL);
-//		var.key = "mgba_frameskip";
-//		var.value = 0;
-//		if (environCallback(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
-//			mCoreConfigSetIntValue(&core->config, "frameskip", strtol(var.value, NULL, 10));
-//			core->reloadConfigOption(core, "frameskip", NULL);
-//		}
+#ifndef PORTANDROID
+		_loadFrameskipSettings(NULL);
+#endif
+		_loadAudioLowPassFilterSettings();
 
 #if defined(COLOR_16_BIT) && defined(COLOR_5_6_5)
 		_loadPostProcessingSettings();
@@ -1498,7 +1576,9 @@ void retro_run(void) {
 			keys |= ((joypadMask >> keymap[i]) & 1) << i;
 		}
 		// XXX: turbo keys, should be moved to frontend
-		keys |= cycleturbo(joypadMask & RETRO_DEVICE_ID_JOYPAD_X, joypadMask & RETRO_DEVICE_ID_JOYPAD_Y, joypadMask & RETRO_DEVICE_ID_JOYPAD_L2, joypadMask & RETRO_DEVICE_ID_JOYPAD_R2);
+#define JOYPAD_BIT(BUTTON) (1 << RETRO_DEVICE_ID_JOYPAD_ ## BUTTON)
+		keys |= cycleturbo(joypadMask & JOYPAD_BIT(X), joypadMask & JOYPAD_BIT(Y), joypadMask & JOYPAD_BIT(L2), joypadMask & JOYPAD_BIT(R2));
+#undef JOYPAD_BIT
 	} else {
 		for (i = 0; i < sizeof(keymap) / sizeof(*keymap); ++i) {
 			keys |= (!!inputCallback(0, RETRO_DEVICE_JOYPAD, 0, keymap[i])) << i;
@@ -1633,13 +1713,38 @@ void retro_run(void) {
 		videoCallback(NULL, width, height, VIDEO_WIDTH_MAX * sizeof(color_t));
 	}
 
-	// This was from aliaspider patch (4539a0e), game boy audio is buggy with it (adapted for this refactored core)
-/*
-	int16_t samples[SAMPLES * 2];
-	int produced = blip_read_samples(core->getAudioChannel(core, 0), samples, SAMPLES, true);
-	blip_read_samples(core->getAudioChannel(core, 1), samples + 1, SAMPLES, true);
-	audioCallback(samples, produced);
-*/
+#ifdef M_CORE_GBA
+	if (core->platform(core) == mPLATFORM_GBA) {
+		blip_t *audioChannelLeft  = core->getAudioChannel(core, 0);
+		blip_t *audioChannelRight = core->getAudioChannel(core, 1);
+		int samplesAvail          = blip_samples_avail(audioChannelLeft);
+		if (samplesAvail > 0) {
+			/* Update 'running average' of number of
+			 * samples per frame.
+			 * Note that this is not a true running
+			 * average, but just a leaky-integrator/
+			 * exponential moving average, used because
+			 * it is simple and fast (i.e. requires no
+			 * window of samples). */
+			audioSamplesPerFrameAvg = (SAMPLES_PER_FRAME_MOVING_AVG_ALPHA * (float)samplesAvail) +
+					((1.0f - SAMPLES_PER_FRAME_MOVING_AVG_ALPHA) * audioSamplesPerFrameAvg);
+			size_t samplesToRead = (size_t)(audioSamplesPerFrameAvg);
+			/* Resize audio output buffer, if required */
+			if (audioSampleBufferSize < (samplesToRead * 2)) {
+				audioSampleBufferSize = (samplesToRead * 2);
+				audioSampleBuffer     = realloc(audioSampleBuffer, audioSampleBufferSize * sizeof(int16_t));
+			}
+			int produced = blip_read_samples(audioChannelLeft, audioSampleBuffer, samplesToRead, true);
+			blip_read_samples(audioChannelRight, audioSampleBuffer + 1, samplesToRead, true);
+			if (produced > 0) {
+				if (audioLowPassEnabled) {
+					_audioLowPassFilter(audioSampleBuffer, produced);
+				}
+				audioCallback(audioSampleBuffer, (size_t)produced);
+			}
+		}
+	}
+#endif
 
 	if (rumbleCallback) {
 		if (rumbleUp) {
@@ -1912,7 +2017,6 @@ bool retro_load_game(const struct retro_game_info* game) {
 	}
 	mCoreInitConfig(core, NULL);
 	core->init(core);
-	core->setAVStream(core, &stream);
 
 #ifdef _3DS
 	outputBuffer = linearMemAlign(VIDEO_BUFF_SIZE, 0x80);
@@ -1922,10 +2026,53 @@ bool retro_load_game(const struct retro_game_info* game) {
 	memset(outputBuffer, 0xFFFF, VIDEO_BUFF_SIZE);
 	core->setVideoBuffer(core, outputBuffer, VIDEO_WIDTH_MAX);
 
-	core->setAudioBufferSize(core, SAMPLES);
+#ifdef M_CORE_GBA
+	/* GBA emulation produces a fairly regular number
+	 * of audio samples per frame that is consistent
+	 * with the set sample rate. We therefore consume
+	 * audio samples in retro_run() to achieve the
+	 * best possible frame pacing */
+	if (core->platform(core) == mPLATFORM_GBA) {
+		/* Set initial output audio buffer size
+		 * to nominal number of samples per frame.
+		 * Buffer will be resized as required in
+		 * retro_run(). */
+		size_t audioSamplesPerFrame = (size_t)((float)SAMPLE_RATE * (float)core->frameCycles(core) /
+				(float)core->frequency(core));
+		audioSampleBufferSize       = audioSamplesPerFrame * 2;
+		audioSampleBuffer           = malloc(audioSampleBufferSize * sizeof(int16_t));
+		audioSamplesPerFrameAvg     = (float)audioSamplesPerFrame;
+		/* Internal audio buffer size should be
+		 * audioSamplesPerFrame, but number of samples
+		 * actually generated varies slightly on a
+		 * frame-by-frame basis. We therefore allow
+		 * for some wriggle room by setting double
+		 * what we need (accounting for the hard
+		 * coded blip buffer limit of 0x4000). */
+		size_t internalAudioBufferSize = audioSamplesPerFrame * 2;
+		if (internalAudioBufferSize > 0x4000) {
+			internalAudioBufferSize = 0x4000;
+		}
+		core->setAudioBufferSize(core, internalAudioBufferSize);
+	} else
+#endif
+	{
+		/* GB/GBC emulation does not produce a number
+		 * of samples per frame that is consistent with
+		 * the set sample rate, and so it is unclear how
+		 * best to handle this. We therefore fallback to
+		 * using the regular stream-set _postAudioBuffer()
+		 * callback with a fixed buffer size, which seems
+		 * (historically) to produce adequate results */
+		core->setAVStream(core, &stream);
+		audioSampleBufferSize   = GB_SAMPLES * 2;
+		audioSampleBuffer       = malloc(audioSampleBufferSize * sizeof(int16_t));
+		audioSamplesPerFrameAvg = GB_SAMPLES;
+		core->setAudioBufferSize(core, GB_SAMPLES);
+	}
 
-	blip_set_rates(core->getAudioChannel(core, 0), core->frequency(core), 32768);
-	blip_set_rates(core->getAudioChannel(core, 1), core->frequency(core), 32768);
+	blip_set_rates(core->getAudioChannel(core, 0), core->frequency(core), SAMPLE_RATE);
+	blip_set_rates(core->getAudioChannel(core, 1), core->frequency(core), SAMPLE_RATE);
 
 	core->setPeripheral(core, mPERIPH_RUMBLE, &rumble);
 	core->setPeripheral(core, mPERIPH_ROTATION, &rotation);
@@ -2113,7 +2260,9 @@ void retro_cheat_set(unsigned index, bool enabled, const char* code) {
 		}
 	}
 #endif
-	cheatSet->refresh(cheatSet, device);
+	if (cheatSet->refresh) {
+		cheatSet->refresh(cheatSet, device);
+	}
 }
 
 unsigned retro_get_region(void) {
@@ -2276,12 +2425,17 @@ void GBARetroLog(struct mLogger* logger, int category, enum mLogLevel level, con
 	logCallback(retroLevel, "%s: %s\n", mLogCategoryName(category), message);
 }
 
+/* Used only for GB/GBC content */
 static void _postAudioBuffer(struct mAVStream* stream, blip_t* left, blip_t* right) {
 	UNUSED(stream);
-	int16_t samples[SAMPLES * 2];
-	blip_read_samples(left, samples, SAMPLES, true);
-	blip_read_samples(right, samples + 1, SAMPLES, true);
-	audioCallback(samples, SAMPLES);
+	int produced = blip_read_samples(left, audioSampleBuffer, GB_SAMPLES, true);
+	blip_read_samples(right, audioSampleBuffer + 1, GB_SAMPLES, true);
+	if (produced > 0) {
+		if (audioLowPassEnabled) {
+			_audioLowPassFilter(audioSampleBuffer, produced);
+		}
+		audioCallback(audioSampleBuffer, (size_t)produced);
+	}
 }
 
 static void _setRumble(struct mRumble* rumble, int enable) {
