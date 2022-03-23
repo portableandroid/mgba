@@ -150,13 +150,13 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", "Default Game Boy preset" },
          { "1", "Game Boy Color presets only" },
          { "2", "Super Game Boy presets only" },
          { "3", "Any available presets" },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -421,11 +421,14 @@ struct retro_core_options_v2 *options_intl[RETRO_LANGUAGE_LAST] = {
    &options_ar,      /* RETRO_LANGUAGE_ARABIC */
    &options_el,      /* RETRO_LANGUAGE_GREEK */
    &options_tr,      /* RETRO_LANGUAGE_TURKISH */
-   &options_sv,      /* RETRO_LANGUAGE_SLOVAK */
+   &options_sk,      /* RETRO_LANGUAGE_SLOVAK */
    &options_fa,      /* RETRO_LANGUAGE_PERSIAN */
    &options_he,      /* RETRO_LANGUAGE_HEBREW */
    &options_ast,     /* RETRO_LANGUAGE_ASTURIAN */
    &options_fi,      /* RETRO_LANGUAGE_FINNISH */
+   &options_id,      /* RETRO_LANGUAGE_INDONESIAN */
+   &options_sv,      /* RETRO_LANGUAGE_SWEDISH */
+   &options_uk,      /* RETRO_LANGUAGE_UKRAINIAN */
 };
 #endif
 

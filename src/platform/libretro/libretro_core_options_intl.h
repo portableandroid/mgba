@@ -66,6 +66,7 @@ extern "C" {
 #define OPTION_VAL_GRAYSCALE_AR NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_AR NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_AR NULL
+#define OPTION_VAL_0_AR NULL
 #define OPTION_VAL_1_AR NULL
 #define OPTION_VAL_2_AR NULL
 #define OPTION_VAL_3_AR NULL
@@ -107,8 +108,6 @@ extern "C" {
 #define OPTION_VAL_95_AR NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_AR NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_AR NULL
-#define OPTION_VAL_NO_AR "لا"
-#define OPTION_VAL_YES_AR "نعم"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_AR NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_AR NULL
 #define OPTION_VAL_SENSOR_AR NULL
@@ -228,13 +227,13 @@ struct retro_core_option_v2_definition option_defs_ar[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_AR },
          { "1", OPTION_VAL_1_AR },
          { "2", OPTION_VAL_2_AR },
          { "3", OPTION_VAL_3_AR },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -338,8 +337,8 @@ struct retro_core_option_v2_definition option_defs_ar[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_AR },
-         { "yes", OPTION_VAL_YES_AR },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -500,6 +499,7 @@ struct retro_core_options_v2 options_ar = {
 #define OPTION_VAL_GRAYSCALE_AST NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_AST NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_AST "Usa les paletes de los xuegos de Game Boy que tengan preaxustes en Game Boy Color o Super Game Boy."
+#define OPTION_VAL_0_AST NULL
 #define OPTION_VAL_1_AST "Namás preaxustes de Game Boy Color"
 #define OPTION_VAL_2_AST "Namás preaxustes de Super Game Boy"
 #define OPTION_VAL_3_AST "Cualesquier preaxuste disponible"
@@ -541,8 +541,6 @@ struct retro_core_options_v2 options_ar = {
 #define OPTION_VAL_95_AST NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_AST NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_AST NULL
-#define OPTION_VAL_NO_AST "non"
-#define OPTION_VAL_YES_AST "sí"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_AST "Nivel del sensor solar"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_AST NULL
 #define OPTION_VAL_SENSOR_AST NULL
@@ -662,13 +660,13 @@ struct retro_core_option_v2_definition option_defs_ast[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_AST },
          { "1", OPTION_VAL_1_AST },
          { "2", OPTION_VAL_2_AST },
          { "3", OPTION_VAL_3_AST },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -772,8 +770,8 @@ struct retro_core_option_v2_definition option_defs_ast[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_AST },
-         { "yes", OPTION_VAL_YES_AST },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -909,10 +907,10 @@ struct retro_core_options_v2 options_ast = {
 
 #define CATEGORY_SYSTEM_LABEL_CA NULL
 #define CATEGORY_SYSTEM_INFO_0_CA NULL
-#define CATEGORY_VIDEO_LABEL_CA NULL
+#define CATEGORY_VIDEO_LABEL_CA "Vídeo"
 #define CATEGORY_VIDEO_INFO_0_CA NULL
 #define CATEGORY_VIDEO_INFO_1_CA NULL
-#define CATEGORY_AUDIO_LABEL_CA NULL
+#define CATEGORY_AUDIO_LABEL_CA "Àudio"
 #define CATEGORY_AUDIO_INFO_0_CA NULL
 #define CATEGORY_INPUT_LABEL_CA NULL
 #define CATEGORY_INPUT_INFO_0_CA NULL
@@ -934,6 +932,7 @@ struct retro_core_options_v2 options_ast = {
 #define OPTION_VAL_GRAYSCALE_CA NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_CA NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_CA NULL
+#define OPTION_VAL_0_CA NULL
 #define OPTION_VAL_1_CA NULL
 #define OPTION_VAL_2_CA NULL
 #define OPTION_VAL_3_CA NULL
@@ -975,8 +974,6 @@ struct retro_core_options_v2 options_ast = {
 #define OPTION_VAL_95_CA NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_CA NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_CA NULL
-#define OPTION_VAL_NO_CA NULL
-#define OPTION_VAL_YES_CA NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_CA NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_CA NULL
 #define OPTION_VAL_SENSOR_CA NULL
@@ -1096,13 +1093,13 @@ struct retro_core_option_v2_definition option_defs_ca[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_CA },
          { "1", OPTION_VAL_1_CA },
          { "2", OPTION_VAL_2_CA },
          { "3", OPTION_VAL_3_CA },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -1206,8 +1203,8 @@ struct retro_core_option_v2_definition option_defs_ca[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_CA },
-         { "yes", OPTION_VAL_YES_CA },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -1368,12 +1365,13 @@ struct retro_core_options_v2 options_ca = {
 #define OPTION_VAL_GRAYSCALE_CHS "灰阶"
 #define MGBA_GB_COLORS_PRESET_LABEL_CHS NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_CHS NULL
+#define OPTION_VAL_0_CHS NULL
 #define OPTION_VAL_1_CHS NULL
 #define OPTION_VAL_2_CHS NULL
 #define OPTION_VAL_3_CHS NULL
 #define MGBA_SGB_BORDERS_LABEL_CHS NULL
 #define MGBA_SGB_BORDERS_INFO_0_CHS NULL
-#define MGBA_COLOR_CORRECTION_LABEL_CHS NULL
+#define MGBA_COLOR_CORRECTION_LABEL_CHS "色彩校正"
 #define MGBA_COLOR_CORRECTION_INFO_0_CHS NULL
 #define OPTION_VAL_AUTO_CHS "自动"
 #define MGBA_INTERFRAME_BLENDING_LABEL_CHS NULL
@@ -1409,8 +1407,6 @@ struct retro_core_options_v2 options_ca = {
 #define OPTION_VAL_95_CHS NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_CHS NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_CHS NULL
-#define OPTION_VAL_NO_CHS "否"
-#define OPTION_VAL_YES_CHS NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_CHS NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_CHS NULL
 #define OPTION_VAL_SENSOR_CHS NULL
@@ -1530,13 +1526,13 @@ struct retro_core_option_v2_definition option_defs_chs[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_CHS },
          { "1", OPTION_VAL_1_CHS },
          { "2", OPTION_VAL_2_CHS },
          { "3", OPTION_VAL_3_CHS },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -1640,8 +1636,8 @@ struct retro_core_option_v2_definition option_defs_chs[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_CHS },
-         { "yes", OPTION_VAL_YES_CHS },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -1802,6 +1798,7 @@ struct retro_core_options_v2 options_chs = {
 #define OPTION_VAL_GRAYSCALE_CHT NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_CHT NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_CHT NULL
+#define OPTION_VAL_0_CHT NULL
 #define OPTION_VAL_1_CHT NULL
 #define OPTION_VAL_2_CHT NULL
 #define OPTION_VAL_3_CHT NULL
@@ -1843,8 +1840,6 @@ struct retro_core_options_v2 options_chs = {
 #define OPTION_VAL_95_CHT NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_CHT NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_CHT NULL
-#define OPTION_VAL_NO_CHT "否"
-#define OPTION_VAL_YES_CHT "是"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_CHT NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_CHT NULL
 #define OPTION_VAL_SENSOR_CHT NULL
@@ -1964,13 +1959,13 @@ struct retro_core_option_v2_definition option_defs_cht[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_CHT },
          { "1", OPTION_VAL_1_CHT },
          { "2", OPTION_VAL_2_CHT },
          { "3", OPTION_VAL_3_CHT },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -2074,8 +2069,8 @@ struct retro_core_option_v2_definition option_defs_cht[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_CHT },
-         { "yes", OPTION_VAL_YES_CHT },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -2236,6 +2231,7 @@ struct retro_core_options_v2 options_cht = {
 #define OPTION_VAL_GRAYSCALE_CS NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_CS NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_CS NULL
+#define OPTION_VAL_0_CS NULL
 #define OPTION_VAL_1_CS NULL
 #define OPTION_VAL_2_CS NULL
 #define OPTION_VAL_3_CS NULL
@@ -2277,8 +2273,6 @@ struct retro_core_options_v2 options_cht = {
 #define OPTION_VAL_95_CS NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_CS NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_CS NULL
-#define OPTION_VAL_NO_CS NULL
-#define OPTION_VAL_YES_CS NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_CS NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_CS NULL
 #define OPTION_VAL_SENSOR_CS NULL
@@ -2398,13 +2392,13 @@ struct retro_core_option_v2_definition option_defs_cs[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_CS },
          { "1", OPTION_VAL_1_CS },
          { "2", OPTION_VAL_2_CS },
          { "3", OPTION_VAL_3_CS },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -2508,8 +2502,8 @@ struct retro_core_option_v2_definition option_defs_cs[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_CS },
-         { "yes", OPTION_VAL_YES_CS },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -2670,6 +2664,7 @@ struct retro_core_options_v2 options_cs = {
 #define OPTION_VAL_GRAYSCALE_CY NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_CY NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_CY NULL
+#define OPTION_VAL_0_CY NULL
 #define OPTION_VAL_1_CY NULL
 #define OPTION_VAL_2_CY NULL
 #define OPTION_VAL_3_CY NULL
@@ -2711,8 +2706,6 @@ struct retro_core_options_v2 options_cs = {
 #define OPTION_VAL_95_CY NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_CY NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_CY NULL
-#define OPTION_VAL_NO_CY "na"
-#define OPTION_VAL_YES_CY "ie"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_CY NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_CY NULL
 #define OPTION_VAL_SENSOR_CY NULL
@@ -2832,13 +2825,13 @@ struct retro_core_option_v2_definition option_defs_cy[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_CY },
          { "1", OPTION_VAL_1_CY },
          { "2", OPTION_VAL_2_CY },
          { "3", OPTION_VAL_3_CY },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -2942,8 +2935,8 @@ struct retro_core_option_v2_definition option_defs_cy[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_CY },
-         { "yes", OPTION_VAL_YES_CY },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -3104,6 +3097,7 @@ struct retro_core_options_v2 options_cy = {
 #define OPTION_VAL_GRAYSCALE_DA NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_DA NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_DA NULL
+#define OPTION_VAL_0_DA NULL
 #define OPTION_VAL_1_DA NULL
 #define OPTION_VAL_2_DA NULL
 #define OPTION_VAL_3_DA NULL
@@ -3145,8 +3139,6 @@ struct retro_core_options_v2 options_cy = {
 #define OPTION_VAL_95_DA NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_DA NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_DA NULL
-#define OPTION_VAL_NO_DA NULL
-#define OPTION_VAL_YES_DA NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_DA NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_DA NULL
 #define OPTION_VAL_SENSOR_DA NULL
@@ -3266,13 +3258,13 @@ struct retro_core_option_v2_definition option_defs_da[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_DA },
          { "1", OPTION_VAL_1_DA },
          { "2", OPTION_VAL_2_DA },
          { "3", OPTION_VAL_3_DA },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -3376,8 +3368,8 @@ struct retro_core_option_v2_definition option_defs_da[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_DA },
-         { "yes", OPTION_VAL_YES_DA },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -3538,6 +3530,7 @@ struct retro_core_options_v2 options_da = {
 #define OPTION_VAL_GRAYSCALE_DE "Graustufen"
 #define MGBA_GB_COLORS_PRESET_LABEL_DE NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_DE NULL
+#define OPTION_VAL_0_DE NULL
 #define OPTION_VAL_1_DE NULL
 #define OPTION_VAL_2_DE NULL
 #define OPTION_VAL_3_DE NULL
@@ -3579,8 +3572,6 @@ struct retro_core_options_v2 options_da = {
 #define OPTION_VAL_95_DE "95 %"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_DE NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_DE NULL
-#define OPTION_VAL_NO_DE "Nein"
-#define OPTION_VAL_YES_DE "Ja"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_DE NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_DE NULL
 #define OPTION_VAL_SENSOR_DE NULL
@@ -3700,13 +3691,13 @@ struct retro_core_option_v2_definition option_defs_de[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_DE },
          { "1", OPTION_VAL_1_DE },
          { "2", OPTION_VAL_2_DE },
          { "3", OPTION_VAL_3_DE },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -3810,8 +3801,8 @@ struct retro_core_option_v2_definition option_defs_de[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_DE },
-         { "yes", OPTION_VAL_YES_DE },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -3969,9 +3960,10 @@ struct retro_core_options_v2 options_de = {
 #define MGBA_SKIP_BIOS_INFO_0_EL NULL
 #define MGBA_GB_COLORS_LABEL_EL NULL
 #define MGBA_GB_COLORS_INFO_0_EL NULL
-#define OPTION_VAL_GRAYSCALE_EL NULL
+#define OPTION_VAL_GRAYSCALE_EL "Γκρι απόχρωση"
 #define MGBA_GB_COLORS_PRESET_LABEL_EL NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_EL NULL
+#define OPTION_VAL_0_EL NULL
 #define OPTION_VAL_1_EL NULL
 #define OPTION_VAL_2_EL NULL
 #define OPTION_VAL_3_EL NULL
@@ -3979,7 +3971,7 @@ struct retro_core_options_v2 options_de = {
 #define MGBA_SGB_BORDERS_INFO_0_EL NULL
 #define MGBA_COLOR_CORRECTION_LABEL_EL "Διόρθωση Χρωμάτων"
 #define MGBA_COLOR_CORRECTION_INFO_0_EL NULL
-#define OPTION_VAL_AUTO_EL NULL
+#define OPTION_VAL_AUTO_EL "Αυτόματο"
 #define MGBA_INTERFRAME_BLENDING_LABEL_EL NULL
 #define MGBA_INTERFRAME_BLENDING_INFO_0_EL NULL
 #define OPTION_VAL_MIX_EL "Απλό"
@@ -4013,8 +4005,6 @@ struct retro_core_options_v2 options_de = {
 #define OPTION_VAL_95_EL NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_EL NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_EL NULL
-#define OPTION_VAL_NO_EL "όχι"
-#define OPTION_VAL_YES_EL "ναι"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_EL "Επίπεδο Ηλιακού Αισθητήρα"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_EL NULL
 #define OPTION_VAL_SENSOR_EL "Χρήση αισθητήρα συσκευής εάν υπάρχει"
@@ -4134,13 +4124,13 @@ struct retro_core_option_v2_definition option_defs_el[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_EL },
          { "1", OPTION_VAL_1_EL },
          { "2", OPTION_VAL_2_EL },
          { "3", OPTION_VAL_3_EL },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -4244,8 +4234,8 @@ struct retro_core_option_v2_definition option_defs_el[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_EL },
-         { "yes", OPTION_VAL_YES_EL },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -4406,6 +4396,7 @@ struct retro_core_options_v2 options_el = {
 #define OPTION_VAL_GRAYSCALE_EO NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_EO NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_EO NULL
+#define OPTION_VAL_0_EO NULL
 #define OPTION_VAL_1_EO NULL
 #define OPTION_VAL_2_EO NULL
 #define OPTION_VAL_3_EO NULL
@@ -4447,8 +4438,6 @@ struct retro_core_options_v2 options_el = {
 #define OPTION_VAL_95_EO NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_EO NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_EO NULL
-#define OPTION_VAL_NO_EO NULL
-#define OPTION_VAL_YES_EO NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_EO NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_EO NULL
 #define OPTION_VAL_SENSOR_EO NULL
@@ -4568,13 +4557,13 @@ struct retro_core_option_v2_definition option_defs_eo[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_EO },
          { "1", OPTION_VAL_1_EO },
          { "2", OPTION_VAL_2_EO },
          { "3", OPTION_VAL_3_EO },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -4678,8 +4667,8 @@ struct retro_core_option_v2_definition option_defs_eo[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_EO },
-         { "yes", OPTION_VAL_YES_EO },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -4816,7 +4805,7 @@ struct retro_core_options_v2 options_eo = {
 #define CATEGORY_SYSTEM_LABEL_ES "Sistema"
 #define CATEGORY_SYSTEM_INFO_0_ES "Cambia los ajustes de selección del hardware base y de la BIOS."
 #define CATEGORY_VIDEO_LABEL_ES "Vídeo"
-#define CATEGORY_VIDEO_INFO_0_ES "Cambia la paleta de los modelos DMG, los bordes de SGB, la corrección de color y los efectos «ghosting» (fantasma) de la pantalla LCD."
+#define CATEGORY_VIDEO_INFO_0_ES "Cambia la paleta de los modelos DMG, los bordes de SGB, la corrección de color y los efectos de imagen fantasma («ghosting») de la pantalla LCD."
 #define CATEGORY_VIDEO_INFO_1_ES "Cambia la paleta de los modelos DMG y los bordes de SGB."
 #define CATEGORY_AUDIO_LABEL_ES NULL
 #define CATEGORY_AUDIO_INFO_0_ES "Cambia los filtros de audio."
@@ -4840,6 +4829,7 @@ struct retro_core_options_v2 options_eo = {
 #define OPTION_VAL_GRAYSCALE_ES "Escala de grises"
 #define MGBA_GB_COLORS_PRESET_LABEL_ES "Paletas del hardware de Game Boy (es necesario reiniciar)"
 #define MGBA_GB_COLORS_PRESET_INFO_0_ES "Aplica paletas específicas a aquellos juegos de Game Boy para los que la Game Boy Color o el Super Game Boy tengan un preajuste asignado."
+#define OPTION_VAL_0_ES "Preajuste predeterminado de Game Boy"
 #define OPTION_VAL_1_ES "Solo preajustes de Game Boy Color"
 #define OPTION_VAL_2_ES "Solo preajustes de Super Game Boy"
 #define OPTION_VAL_3_ES "Usar cualquier preajuste disponible"
@@ -4849,17 +4839,17 @@ struct retro_core_options_v2 options_eo = {
 #define MGBA_COLOR_CORRECTION_INFO_0_ES "Ajusta los colores de la salida de imagen para que esta coincida con la que mostraría un hardware real de GBA/GBC."
 #define OPTION_VAL_AUTO_ES "Selección automática"
 #define MGBA_INTERFRAME_BLENDING_LABEL_ES "Fusión entre fotogramas"
-#define MGBA_INTERFRAME_BLENDING_INFO_0_ES "Simula el efecto «ghosting» (fantasma) de la pantalla LCD. «Sencilla» mezcla la mitad de los fotogramas anterior y siguiente. «Inteligente» intentará detectar parpadeos en la pantalla y solo hará una mezcla de mitades de fotogramas en los píxeles afectados. «Ghosting de LCD» simula los tiempos de respuesta naturales de una pantalla LCD combinando varios fotogramas almacenados en el búfer. Las fusiones «Sencilla» o «Inteligente» son necesarias para aquellos juegos que necesiten el efecto «ghosting» para mostrar efectos de transparencias (Wave Race, Chikyuu Kaihou Gun ZAS, F-Zero, la saga Boktai...)."
+#define MGBA_INTERFRAME_BLENDING_INFO_0_ES "Simula el efecto de imagen fantasma («ghosting») de la pantalla LCD. «Sencilla» mezcla la mitad de los fotogramas anterior y siguiente. «Inteligente» intentará detectar parpadeos en la pantalla y solo hará una mezcla de mitades de fotogramas en los píxeles afectados. «Imagen fantasma de LCD» simula los tiempos de respuesta naturales de una pantalla LCD combinando varios fotogramas almacenados en el búfer. Las fusiones «Sencilla» o «Inteligente» son necesarias para aquellos juegos que necesiten este efecto para mostrar efectos de transparencias (Wave Race, Chikyuu Kaihou Gun ZAS, F-Zero, la saga Boktai...)."
 #define OPTION_VAL_MIX_ES "Sencilla"
 #define OPTION_VAL_MIX_SMART_ES "Inteligente"
-#define OPTION_VAL_LCD_GHOSTING_ES "«Ghosting» de LCD (preciso)"
-#define OPTION_VAL_LCD_GHOSTING_FAST_ES "«Ghosting» de LCD (rápido)"
+#define OPTION_VAL_LCD_GHOSTING_ES "Imagen fantasma («ghosting») de LCD (preciso)"
+#define OPTION_VAL_LCD_GHOSTING_FAST_ES "Imagen fantasma («ghosting») de LCD (rápido)"
 #define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_ES "Filtro de audio"
 #define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_CAT_ES "Filtro de paso bajo"
 #define MGBA_AUDIO_LOW_PASS_FILTER_INFO_0_ES "Activa un filtro de paso bajo para reducir la estridencia del audio generado."
 #define MGBA_AUDIO_LOW_PASS_RANGE_LABEL_ES "Nivel del filtro de audio"
 #define MGBA_AUDIO_LOW_PASS_RANGE_LABEL_CAT_ES "Nivel del filtro"
-#define MGBA_AUDIO_LOW_PASS_RANGE_INFO_0_ES "Especifica el corte de frecuencias en el filtro de paso bajo de audio. Un valor elevado aumentará la fuerza percibida del filtro, ya que se atenuará un rango mayor del espectro de frecuencias altas."
+#define MGBA_AUDIO_LOW_PASS_RANGE_INFO_0_ES "Especifica el corte de frecuencias en el filtro de paso bajo de audio. Un valor elevado aumentará la fuerza percibida del filtro, ya que se atenuará un rango mayor del espectro de frecuencias agudas."
 #define OPTION_VAL_5_ES "5 %"
 #define OPTION_VAL_10_ES "10 %"
 #define OPTION_VAL_15_ES "15 %"
@@ -4881,8 +4871,6 @@ struct retro_core_options_v2 options_eo = {
 #define OPTION_VAL_95_ES "95 %"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_ES "Permitir entradas direccionales opuestas"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_ES "Esta opción permitirá pulsar, alternar rápidamente o mantener las direcciones izquierda y derecha (o arriba y abajo) al mismo tiempo. Podría provocar fallos de movimiento."
-#define OPTION_VAL_NO_ES "No"
-#define OPTION_VAL_YES_ES "Sí"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_ES "Nivel del sensor solar"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_ES "Ajusta la intensidad de la luz solar ambiental. Para juegos que contenían un sensor solar en sus cartuchos, p. ej.: la saga Boktai."
 #define OPTION_VAL_SENSOR_ES "Utilizar dispositivo sensor si está disponible"
@@ -5002,13 +4990,13 @@ struct retro_core_option_v2_definition option_defs_es[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_ES },
          { "1", OPTION_VAL_1_ES },
          { "2", OPTION_VAL_2_ES },
          { "3", OPTION_VAL_3_ES },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -5112,8 +5100,8 @@ struct retro_core_option_v2_definition option_defs_es[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_ES },
-         { "yes", OPTION_VAL_YES_ES },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -5274,6 +5262,7 @@ struct retro_core_options_v2 options_es = {
 #define OPTION_VAL_GRAYSCALE_FA NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_FA NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_FA NULL
+#define OPTION_VAL_0_FA NULL
 #define OPTION_VAL_1_FA NULL
 #define OPTION_VAL_2_FA NULL
 #define OPTION_VAL_3_FA NULL
@@ -5315,8 +5304,6 @@ struct retro_core_options_v2 options_es = {
 #define OPTION_VAL_95_FA NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_FA NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_FA NULL
-#define OPTION_VAL_NO_FA NULL
-#define OPTION_VAL_YES_FA NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_FA NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_FA NULL
 #define OPTION_VAL_SENSOR_FA NULL
@@ -5436,13 +5423,13 @@ struct retro_core_option_v2_definition option_defs_fa[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_FA },
          { "1", OPTION_VAL_1_FA },
          { "2", OPTION_VAL_2_FA },
          { "3", OPTION_VAL_3_FA },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -5546,8 +5533,8 @@ struct retro_core_option_v2_definition option_defs_fa[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_FA },
-         { "yes", OPTION_VAL_YES_FA },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -5708,6 +5695,7 @@ struct retro_core_options_v2 options_fa = {
 #define OPTION_VAL_GRAYSCALE_FI "Harmaasävy"
 #define MGBA_GB_COLORS_PRESET_LABEL_FI "Game Boy laitteiston esiasetetut paletit (Uudelleenkäynnistys)"
 #define MGBA_GB_COLORS_PRESET_INFO_0_FI "Käytä Game Boy peleillä paletteja, joilla on esiasetukset Game Boy Color:illa tai Super Game Boy:lla."
+#define OPTION_VAL_0_FI "Oletus Game Boy esiasetus"
 #define OPTION_VAL_1_FI "Vain Game Boy Color esiasetukset"
 #define OPTION_VAL_2_FI "Vain Super Game Boy esiasetukset"
 #define OPTION_VAL_3_FI "Kaikki käytettävissä olevat esiasetukset"
@@ -5749,8 +5737,6 @@ struct retro_core_options_v2 options_fa = {
 #define OPTION_VAL_95_FI "95 %"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_FI "Salli vastakkaisten suuntien syöte"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_FI "Tämän käyttöönotto sallii painamaan / nopeasti vaihtelemaan / pitämään sekä vasemmalle että oikealle (tai ylös ja alas) samanaikaisesti. Tämä voi aiheuttaa liikkeisiin perustuvia virheitä."
-#define OPTION_VAL_NO_FI "ei"
-#define OPTION_VAL_YES_FI "kyllä"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_FI "Aurinkoanturin taso"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_FI "Asettaa ympäristön auringonvalon voimakkuuden. Voidaan käyttää peleissä, jotka sisälsivät aurinkoanturin kaseteissaan, esim. Boktai-sarjassa."
 #define OPTION_VAL_SENSOR_FI "Käytä laitteen anturia, mikäli saatavana"
@@ -5870,13 +5856,13 @@ struct retro_core_option_v2_definition option_defs_fi[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_FI },
          { "1", OPTION_VAL_1_FI },
          { "2", OPTION_VAL_2_FI },
          { "3", OPTION_VAL_3_FI },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -5980,8 +5966,8 @@ struct retro_core_option_v2_definition option_defs_fi[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_FI },
-         { "yes", OPTION_VAL_YES_FI },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -6142,6 +6128,7 @@ struct retro_core_options_v2 options_fi = {
 #define OPTION_VAL_GRAYSCALE_FR "Niveaux de gris"
 #define MGBA_GB_COLORS_PRESET_LABEL_FR "Palettes de Game Boy prédéfinies par le matériel (Redémarrage requis)"
 #define MGBA_GB_COLORS_PRESET_INFO_0_FR "Utiliser les palettes pour les jeux de Game Boy qui ont des préréglages sur la Game Boy Color ou le Super Game Boy."
+#define OPTION_VAL_0_FR "Préréglage Game Boy par défaut"
 #define OPTION_VAL_1_FR "Préréglages de Game Boy Color uniquement"
 #define OPTION_VAL_2_FR "Préréglages de Super Game Boy uniquement"
 #define OPTION_VAL_3_FR "Tous les préréglages disponibles"
@@ -6183,8 +6170,6 @@ struct retro_core_options_v2 options_fi = {
 #define OPTION_VAL_95_FR NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_FR "Autoriser les entrées directionnelles opposées"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_FR "L'activation de cette option permettra d'appuyer/d'alterner rapidement/de maintenir les directions gauche et droite (ou haut et bas) en même temps. Cela peut causer des bugs liés au mouvement."
-#define OPTION_VAL_NO_FR "non"
-#define OPTION_VAL_YES_FR "oui"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_FR "Niveau du capteur solaire"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_FR "Définit l'intensité ambiante de la lumière du soleil. Peut être utilisée par des jeux qui incluaient un capteur solaire dans leurs cartouches, par exemple : la série Boktai."
 #define OPTION_VAL_SENSOR_FR "Utiliser le capteur de l'appareil si disponible"
@@ -6304,13 +6289,13 @@ struct retro_core_option_v2_definition option_defs_fr[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_FR },
          { "1", OPTION_VAL_1_FR },
          { "2", OPTION_VAL_2_FR },
          { "3", OPTION_VAL_3_FR },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -6414,8 +6399,8 @@ struct retro_core_option_v2_definition option_defs_fr[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_FR },
-         { "yes", OPTION_VAL_YES_FR },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -6576,6 +6561,7 @@ struct retro_core_options_v2 options_fr = {
 #define OPTION_VAL_GRAYSCALE_GL NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_GL NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_GL NULL
+#define OPTION_VAL_0_GL NULL
 #define OPTION_VAL_1_GL NULL
 #define OPTION_VAL_2_GL NULL
 #define OPTION_VAL_3_GL NULL
@@ -6617,8 +6603,6 @@ struct retro_core_options_v2 options_fr = {
 #define OPTION_VAL_95_GL NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_GL NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_GL NULL
-#define OPTION_VAL_NO_GL NULL
-#define OPTION_VAL_YES_GL "sí"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_GL NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_GL NULL
 #define OPTION_VAL_SENSOR_GL NULL
@@ -6738,13 +6722,13 @@ struct retro_core_option_v2_definition option_defs_gl[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_GL },
          { "1", OPTION_VAL_1_GL },
          { "2", OPTION_VAL_2_GL },
          { "3", OPTION_VAL_3_GL },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -6848,8 +6832,8 @@ struct retro_core_option_v2_definition option_defs_gl[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_GL },
-         { "yes", OPTION_VAL_YES_GL },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -7010,6 +6994,7 @@ struct retro_core_options_v2 options_gl = {
 #define OPTION_VAL_GRAYSCALE_HE NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_HE NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_HE NULL
+#define OPTION_VAL_0_HE NULL
 #define OPTION_VAL_1_HE NULL
 #define OPTION_VAL_2_HE NULL
 #define OPTION_VAL_3_HE NULL
@@ -7051,8 +7036,6 @@ struct retro_core_options_v2 options_gl = {
 #define OPTION_VAL_95_HE NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_HE NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_HE NULL
-#define OPTION_VAL_NO_HE NULL
-#define OPTION_VAL_YES_HE NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_HE NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_HE NULL
 #define OPTION_VAL_SENSOR_HE NULL
@@ -7172,13 +7155,13 @@ struct retro_core_option_v2_definition option_defs_he[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_HE },
          { "1", OPTION_VAL_1_HE },
          { "2", OPTION_VAL_2_HE },
          { "3", OPTION_VAL_3_HE },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -7282,8 +7265,8 @@ struct retro_core_option_v2_definition option_defs_he[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_HE },
-         { "yes", OPTION_VAL_YES_HE },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -7444,6 +7427,7 @@ struct retro_core_options_v2 options_he = {
 #define OPTION_VAL_GRAYSCALE_HU NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_HU NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_HU NULL
+#define OPTION_VAL_0_HU NULL
 #define OPTION_VAL_1_HU NULL
 #define OPTION_VAL_2_HU NULL
 #define OPTION_VAL_3_HU NULL
@@ -7485,8 +7469,6 @@ struct retro_core_options_v2 options_he = {
 #define OPTION_VAL_95_HU NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_HU NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_HU NULL
-#define OPTION_VAL_NO_HU NULL
-#define OPTION_VAL_YES_HU NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_HU NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_HU NULL
 #define OPTION_VAL_SENSOR_HU NULL
@@ -7606,13 +7588,13 @@ struct retro_core_option_v2_definition option_defs_hu[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_HU },
          { "1", OPTION_VAL_1_HU },
          { "2", OPTION_VAL_2_HU },
          { "3", OPTION_VAL_3_HU },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -7716,8 +7698,8 @@ struct retro_core_option_v2_definition option_defs_hu[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_HU },
-         { "yes", OPTION_VAL_YES_HU },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -7878,6 +7860,7 @@ struct retro_core_options_v2 options_hu = {
 #define OPTION_VAL_GRAYSCALE_ID NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_ID NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_ID NULL
+#define OPTION_VAL_0_ID NULL
 #define OPTION_VAL_1_ID NULL
 #define OPTION_VAL_2_ID NULL
 #define OPTION_VAL_3_ID NULL
@@ -7919,8 +7902,6 @@ struct retro_core_options_v2 options_hu = {
 #define OPTION_VAL_95_ID NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_ID NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_ID NULL
-#define OPTION_VAL_NO_ID NULL
-#define OPTION_VAL_YES_ID NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_ID NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_ID NULL
 #define OPTION_VAL_SENSOR_ID NULL
@@ -8040,13 +8021,13 @@ struct retro_core_option_v2_definition option_defs_id[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_ID },
          { "1", OPTION_VAL_1_ID },
          { "2", OPTION_VAL_2_ID },
          { "3", OPTION_VAL_3_ID },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -8150,8 +8131,8 @@ struct retro_core_option_v2_definition option_defs_id[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_ID },
-         { "yes", OPTION_VAL_YES_ID },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -8312,6 +8293,7 @@ struct retro_core_options_v2 options_id = {
 #define OPTION_VAL_GRAYSCALE_IT "Scala di grigi"
 #define MGBA_GB_COLORS_PRESET_LABEL_IT "Tavolozze del Game Boy predefinite per l'hardware (Riavvio richiesto)"
 #define MGBA_GB_COLORS_PRESET_INFO_0_IT "Usa le tavolozze per i giochi di Game Boy che hanno preset sul Game Boy Color o Super Game Boy."
+#define OPTION_VAL_0_IT "Predefinito Game Boy"
 #define OPTION_VAL_1_IT "Solo preimpostazioni di Game Boy Color"
 #define OPTION_VAL_2_IT "Solo preimpostazioni di Super Game Boy"
 #define OPTION_VAL_3_IT "Qualsiasi preset disponibile"
@@ -8353,8 +8335,6 @@ struct retro_core_options_v2 options_id = {
 #define OPTION_VAL_95_IT NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_IT "Permetti Input Direzionali Opposti"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_IT "Attivando questa funzionalità ti permette di premere / alternare velocemente / tenere premuti entrambe le direzioni destra e sinistra (oppure su e giù) allo stesso momento. Potrebbe causare dei glitch di movimento."
-#define OPTION_VAL_NO_IT NULL
-#define OPTION_VAL_YES_IT "si"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_IT "Livello Sensore Solare"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_IT "Imposta l'intensità solare dell'ambiente. Può essere usato dai giochi che includono un sensore solare nelle loro cartucce, es.: la serie Boktai."
 #define OPTION_VAL_SENSOR_IT "Usa sensore dispositivo se disponibile"
@@ -8474,13 +8454,13 @@ struct retro_core_option_v2_definition option_defs_it[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_IT },
          { "1", OPTION_VAL_1_IT },
          { "2", OPTION_VAL_2_IT },
          { "3", OPTION_VAL_3_IT },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -8584,8 +8564,8 @@ struct retro_core_option_v2_definition option_defs_it[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_IT },
-         { "yes", OPTION_VAL_YES_IT },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -8734,7 +8714,7 @@ struct retro_core_options_v2 options_it = {
 #define MGBA_GB_MODEL_INFO_0_JA NULL
 #define OPTION_VAL_AUTODETECT_JA "自動検出"
 #define OPTION_VAL_GAME_BOY_JA NULL
-#define OPTION_VAL_SUPER_GAME_BOY_JA NULL
+#define OPTION_VAL_SUPER_GAME_BOY_JA "スーパーゲームボーイ"
 #define OPTION_VAL_GAME_BOY_COLOR_JA NULL
 #define OPTION_VAL_GAME_BOY_ADVANCE_JA NULL
 #define MGBA_USE_BIOS_LABEL_JA NULL
@@ -8746,6 +8726,7 @@ struct retro_core_options_v2 options_it = {
 #define OPTION_VAL_GRAYSCALE_JA NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_JA NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_JA NULL
+#define OPTION_VAL_0_JA NULL
 #define OPTION_VAL_1_JA NULL
 #define OPTION_VAL_2_JA NULL
 #define OPTION_VAL_3_JA NULL
@@ -8787,8 +8768,6 @@ struct retro_core_options_v2 options_it = {
 #define OPTION_VAL_95_JA NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_JA NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_JA NULL
-#define OPTION_VAL_NO_JA "いいえ"
-#define OPTION_VAL_YES_JA "はい"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_JA NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_JA NULL
 #define OPTION_VAL_SENSOR_JA NULL
@@ -8908,13 +8887,13 @@ struct retro_core_option_v2_definition option_defs_ja[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_JA },
          { "1", OPTION_VAL_1_JA },
          { "2", OPTION_VAL_2_JA },
          { "3", OPTION_VAL_3_JA },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -9018,8 +8997,8 @@ struct retro_core_option_v2_definition option_defs_ja[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_JA },
-         { "yes", OPTION_VAL_YES_JA },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -9180,6 +9159,7 @@ struct retro_core_options_v2 options_ja = {
 #define OPTION_VAL_GRAYSCALE_KO "흑백"
 #define MGBA_GB_COLORS_PRESET_LABEL_KO "하드웨어 프리셋 Game Boy 팔레트 (재시작 필요)"
 #define MGBA_GB_COLORS_PRESET_INFO_0_KO "Game Boy 게임에 Game Boy Color 또는 Super Game Boy에서 사용되는 팔레트가 있는 경우 해당 팔레트를 사용합니다."
+#define OPTION_VAL_0_KO "기본 Game Boy 프리셋"
 #define OPTION_VAL_1_KO "Game Boy Color 프리셋만"
 #define OPTION_VAL_2_KO "Super Game Boy 프리셋만"
 #define OPTION_VAL_3_KO "모든 프리셋 사용"
@@ -9221,8 +9201,6 @@ struct retro_core_options_v2 options_ja = {
 #define OPTION_VAL_95_KO NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_KO "반대 방향 동시 입력 허용"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_KO "이 옵션을 활성화하면 왼쪽과 오른쪽 (또는 위쪽과 아래쪽) 방향 입력을 동시에 누르거나 빠르게 번갈아 누르는 것을 허용합니다. 이는 움직임 관련 버그를 일으킬 수 있습니다."
-#define OPTION_VAL_NO_KO "아니오"
-#define OPTION_VAL_YES_KO "예"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_KO "태양광 센서 수준"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_KO "태양광 센서의 강도를 설정합니다. 카트리지에 태양광 센서를 장착한 일부 게임(예: Boktai 시리즈)에서 사용할 수 있습니다."
 #define OPTION_VAL_SENSOR_KO "가능한 경우 장치 센서 사용"
@@ -9342,13 +9320,13 @@ struct retro_core_option_v2_definition option_defs_ko[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_KO },
          { "1", OPTION_VAL_1_KO },
          { "2", OPTION_VAL_2_KO },
          { "3", OPTION_VAL_3_KO },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -9452,8 +9430,8 @@ struct retro_core_option_v2_definition option_defs_ko[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_KO },
-         { "yes", OPTION_VAL_YES_KO },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -9614,6 +9592,7 @@ struct retro_core_options_v2 options_ko = {
 #define OPTION_VAL_GRAYSCALE_MT NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_MT NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_MT NULL
+#define OPTION_VAL_0_MT NULL
 #define OPTION_VAL_1_MT NULL
 #define OPTION_VAL_2_MT NULL
 #define OPTION_VAL_3_MT NULL
@@ -9655,8 +9634,6 @@ struct retro_core_options_v2 options_ko = {
 #define OPTION_VAL_95_MT NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_MT NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_MT NULL
-#define OPTION_VAL_NO_MT NULL
-#define OPTION_VAL_YES_MT NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_MT NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_MT NULL
 #define OPTION_VAL_SENSOR_MT NULL
@@ -9776,13 +9753,13 @@ struct retro_core_option_v2_definition option_defs_mt[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_MT },
          { "1", OPTION_VAL_1_MT },
          { "2", OPTION_VAL_2_MT },
          { "3", OPTION_VAL_3_MT },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -9886,8 +9863,8 @@ struct retro_core_option_v2_definition option_defs_mt[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_MT },
-         { "yes", OPTION_VAL_YES_MT },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -10048,6 +10025,7 @@ struct retro_core_options_v2 options_mt = {
 #define OPTION_VAL_GRAYSCALE_NL NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_NL NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_NL NULL
+#define OPTION_VAL_0_NL NULL
 #define OPTION_VAL_1_NL NULL
 #define OPTION_VAL_2_NL NULL
 #define OPTION_VAL_3_NL NULL
@@ -10089,8 +10067,6 @@ struct retro_core_options_v2 options_mt = {
 #define OPTION_VAL_95_NL NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_NL NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_NL NULL
-#define OPTION_VAL_NO_NL "nee"
-#define OPTION_VAL_YES_NL "ja"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_NL NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_NL NULL
 #define OPTION_VAL_SENSOR_NL NULL
@@ -10210,13 +10186,13 @@ struct retro_core_option_v2_definition option_defs_nl[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_NL },
          { "1", OPTION_VAL_1_NL },
          { "2", OPTION_VAL_2_NL },
          { "3", OPTION_VAL_3_NL },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -10320,8 +10296,8 @@ struct retro_core_option_v2_definition option_defs_nl[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_NL },
-         { "yes", OPTION_VAL_YES_NL },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -10453,6 +10429,439 @@ struct retro_core_options_v2 options_nl = {
    option_defs_nl
 };
 
+/* RETRO_LANGUAGE_NO */
+
+#define CATEGORY_SYSTEM_LABEL_NO NULL
+#define CATEGORY_SYSTEM_INFO_0_NO NULL
+#define CATEGORY_VIDEO_LABEL_NO NULL
+#define CATEGORY_VIDEO_INFO_0_NO NULL
+#define CATEGORY_VIDEO_INFO_1_NO NULL
+#define CATEGORY_AUDIO_LABEL_NO "Lyd"
+#define CATEGORY_AUDIO_INFO_0_NO NULL
+#define CATEGORY_INPUT_LABEL_NO NULL
+#define CATEGORY_INPUT_INFO_0_NO NULL
+#define CATEGORY_PERFORMANCE_LABEL_NO NULL
+#define CATEGORY_PERFORMANCE_INFO_0_NO NULL
+#define MGBA_GB_MODEL_LABEL_NO NULL
+#define MGBA_GB_MODEL_INFO_0_NO NULL
+#define OPTION_VAL_AUTODETECT_NO NULL
+#define OPTION_VAL_GAME_BOY_NO NULL
+#define OPTION_VAL_SUPER_GAME_BOY_NO NULL
+#define OPTION_VAL_GAME_BOY_COLOR_NO NULL
+#define OPTION_VAL_GAME_BOY_ADVANCE_NO NULL
+#define MGBA_USE_BIOS_LABEL_NO NULL
+#define MGBA_USE_BIOS_INFO_0_NO NULL
+#define MGBA_SKIP_BIOS_LABEL_NO NULL
+#define MGBA_SKIP_BIOS_INFO_0_NO NULL
+#define MGBA_GB_COLORS_LABEL_NO NULL
+#define MGBA_GB_COLORS_INFO_0_NO NULL
+#define OPTION_VAL_GRAYSCALE_NO NULL
+#define MGBA_GB_COLORS_PRESET_LABEL_NO NULL
+#define MGBA_GB_COLORS_PRESET_INFO_0_NO NULL
+#define OPTION_VAL_0_NO NULL
+#define OPTION_VAL_1_NO NULL
+#define OPTION_VAL_2_NO NULL
+#define OPTION_VAL_3_NO NULL
+#define MGBA_SGB_BORDERS_LABEL_NO NULL
+#define MGBA_SGB_BORDERS_INFO_0_NO NULL
+#define MGBA_COLOR_CORRECTION_LABEL_NO NULL
+#define MGBA_COLOR_CORRECTION_INFO_0_NO NULL
+#define OPTION_VAL_AUTO_NO NULL
+#define MGBA_INTERFRAME_BLENDING_LABEL_NO NULL
+#define MGBA_INTERFRAME_BLENDING_INFO_0_NO NULL
+#define OPTION_VAL_MIX_NO NULL
+#define OPTION_VAL_MIX_SMART_NO NULL
+#define OPTION_VAL_LCD_GHOSTING_NO NULL
+#define OPTION_VAL_LCD_GHOSTING_FAST_NO NULL
+#define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_NO NULL
+#define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_CAT_NO NULL
+#define MGBA_AUDIO_LOW_PASS_FILTER_INFO_0_NO NULL
+#define MGBA_AUDIO_LOW_PASS_RANGE_LABEL_NO NULL
+#define MGBA_AUDIO_LOW_PASS_RANGE_LABEL_CAT_NO NULL
+#define MGBA_AUDIO_LOW_PASS_RANGE_INFO_0_NO NULL
+#define OPTION_VAL_5_NO NULL
+#define OPTION_VAL_10_NO NULL
+#define OPTION_VAL_15_NO NULL
+#define OPTION_VAL_20_NO NULL
+#define OPTION_VAL_25_NO NULL
+#define OPTION_VAL_30_NO NULL
+#define OPTION_VAL_35_NO NULL
+#define OPTION_VAL_40_NO NULL
+#define OPTION_VAL_45_NO NULL
+#define OPTION_VAL_50_NO NULL
+#define OPTION_VAL_55_NO NULL
+#define OPTION_VAL_60_NO NULL
+#define OPTION_VAL_65_NO NULL
+#define OPTION_VAL_70_NO NULL
+#define OPTION_VAL_75_NO NULL
+#define OPTION_VAL_80_NO NULL
+#define OPTION_VAL_85_NO NULL
+#define OPTION_VAL_90_NO NULL
+#define OPTION_VAL_95_NO NULL
+#define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_NO NULL
+#define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_NO NULL
+#define MGBA_SOLAR_SENSOR_LEVEL_LABEL_NO NULL
+#define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_NO NULL
+#define OPTION_VAL_SENSOR_NO NULL
+#define MGBA_FORCE_GBP_LABEL_NO NULL
+#define MGBA_FORCE_GBP_INFO_0_NO NULL
+#define MGBA_IDLE_OPTIMIZATION_LABEL_NO NULL
+#define MGBA_IDLE_OPTIMIZATION_INFO_0_NO NULL
+#define OPTION_VAL_REMOVE_KNOWN_NO NULL
+#define OPTION_VAL_DETECT_AND_REMOVE_NO NULL
+#define OPTION_VAL_DON_T_REMOVE_NO NULL
+#define MGBA_FRAMESKIP_LABEL_NO NULL
+#define MGBA_FRAMESKIP_INFO_0_NO NULL
+#define OPTION_VAL_AUTO_THRESHOLD_NO NULL
+#define OPTION_VAL_FIXED_INTERVAL_NO NULL
+#define MGBA_FRAMESKIP_THRESHOLD_LABEL_NO NULL
+#define MGBA_FRAMESKIP_THRESHOLD_INFO_0_NO NULL
+#define MGBA_FRAMESKIP_INTERVAL_LABEL_NO NULL
+#define MGBA_FRAMESKIP_INTERVAL_INFO_0_NO NULL
+
+struct retro_core_option_v2_category option_cats_no[] = {
+   {
+      "system",
+      CATEGORY_SYSTEM_LABEL_NO,
+      CATEGORY_SYSTEM_INFO_0_NO
+   },
+   {
+      "video",
+      CATEGORY_VIDEO_LABEL_NO,
+#if defined(COLOR_16_BIT) && defined(COLOR_5_6_5)
+      CATEGORY_VIDEO_INFO_0_NO
+#else
+      CATEGORY_VIDEO_INFO_1_NO
+#endif
+   },
+   {
+      "audio",
+      CATEGORY_AUDIO_LABEL_NO,
+      CATEGORY_AUDIO_INFO_0_NO
+   },
+   {
+      "input",
+      CATEGORY_INPUT_LABEL_NO,
+      CATEGORY_INPUT_INFO_0_NO
+   },
+   {
+      "performance",
+      CATEGORY_PERFORMANCE_LABEL_NO,
+      CATEGORY_PERFORMANCE_INFO_0_NO
+   },
+   { NULL, NULL, NULL },
+};
+struct retro_core_option_v2_definition option_defs_no[] = {
+   {
+      "mgba_gb_model",
+      MGBA_GB_MODEL_LABEL_NO,
+      NULL,
+      MGBA_GB_MODEL_INFO_0_NO,
+      NULL,
+      "system",
+      {
+         { "Autodetect",       OPTION_VAL_AUTODETECT_NO },
+         { "Game Boy",         OPTION_VAL_GAME_BOY_NO },
+         { "Super Game Boy",   OPTION_VAL_SUPER_GAME_BOY_NO },
+         { "Game Boy Color",   OPTION_VAL_GAME_BOY_COLOR_NO },
+         { "Game Boy Advance", OPTION_VAL_GAME_BOY_ADVANCE_NO },
+         { NULL, NULL },
+      },
+      "Autodetect"
+   },
+   {
+      "mgba_use_bios",
+      MGBA_USE_BIOS_LABEL_NO,
+      NULL,
+      MGBA_USE_BIOS_INFO_0_NO,
+      NULL,
+      "system",
+      {
+         { "ON",  "enabled" },
+         { "OFF", "disabled" },
+         { NULL, NULL },
+      },
+      "ON"
+   },
+   {
+      "mgba_skip_bios",
+      MGBA_SKIP_BIOS_LABEL_NO,
+      NULL,
+      MGBA_SKIP_BIOS_INFO_0_NO,
+      NULL,
+      "system",
+      {
+         { "OFF", "disabled" },
+         { "ON",  "enabled" },
+         { NULL, NULL },
+      },
+      "OFF"
+   },
+   {
+      "mgba_gb_colors",
+      MGBA_GB_COLORS_LABEL_NO,
+      NULL,
+      MGBA_GB_COLORS_INFO_0_NO,
+      NULL,
+      "video",
+      {
+         /* This list is populated at runtime */
+         { "Grayscale", OPTION_VAL_GRAYSCALE_NO },
+         { NULL, NULL },
+      },
+      "Grayscale"
+   },
+   {
+      "mgba_gb_colors_preset",
+      MGBA_GB_COLORS_PRESET_LABEL_NO,
+      NULL,
+      MGBA_GB_COLORS_PRESET_INFO_0_NO,
+      NULL,
+      "video",
+      {
+         { "0", OPTION_VAL_0_NO },
+         { "1", OPTION_VAL_1_NO },
+         { "2", OPTION_VAL_2_NO },
+         { "3", OPTION_VAL_3_NO },
+         { NULL, NULL },
+      },
+      "0"
+   },
+   {
+      "mgba_sgb_borders",
+      MGBA_SGB_BORDERS_LABEL_NO,
+      NULL,
+      MGBA_SGB_BORDERS_INFO_0_NO,
+      NULL,
+      "video",
+      {
+         { "ON",  "enabled" },
+         { "OFF", "disabled" },
+         { NULL, NULL },
+      },
+      "ON"
+   },
+#if defined(COLOR_16_BIT) && defined(COLOR_5_6_5)
+   {
+      "mgba_color_correction",
+      MGBA_COLOR_CORRECTION_LABEL_NO,
+      NULL,
+      MGBA_COLOR_CORRECTION_INFO_0_NO,
+      NULL,
+      "video",
+      {
+         { "OFF",  "disabled" },
+         { "GBA",  OPTION_VAL_GAME_BOY_ADVANCE_NO },
+         { "GBC",  OPTION_VAL_GAME_BOY_COLOR_NO },
+         { "Auto", OPTION_VAL_AUTO_NO },
+         { NULL, NULL },
+      },
+      "OFF"
+   },
+   {
+      "mgba_interframe_blending",
+      MGBA_INTERFRAME_BLENDING_LABEL_NO,
+      NULL,
+      MGBA_INTERFRAME_BLENDING_INFO_0_NO,
+      NULL,
+      "video",
+      {
+         { "OFF",               "disabled" },
+         { "mix",               OPTION_VAL_MIX_NO },
+         { "mix_smart",         OPTION_VAL_MIX_SMART_NO },
+         { "lcd_ghosting",      OPTION_VAL_LCD_GHOSTING_NO },
+         { "lcd_ghosting_fast", OPTION_VAL_LCD_GHOSTING_FAST_NO },
+         { NULL, NULL },
+      },
+      "OFF"
+   },
+#endif
+   {
+      "mgba_audio_low_pass_filter",
+      MGBA_AUDIO_LOW_PASS_FILTER_LABEL_NO,
+      MGBA_AUDIO_LOW_PASS_FILTER_LABEL_CAT_NO,
+      MGBA_AUDIO_LOW_PASS_FILTER_INFO_0_NO,
+      NULL,
+      "audio",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "mgba_audio_low_pass_range",
+      MGBA_AUDIO_LOW_PASS_RANGE_LABEL_NO,
+      MGBA_AUDIO_LOW_PASS_RANGE_LABEL_CAT_NO,
+      MGBA_AUDIO_LOW_PASS_RANGE_INFO_0_NO,
+      NULL,
+      "audio",
+      {
+         { "5",  OPTION_VAL_5_NO },
+         { "10", OPTION_VAL_10_NO },
+         { "15", OPTION_VAL_15_NO },
+         { "20", OPTION_VAL_20_NO },
+         { "25", OPTION_VAL_25_NO },
+         { "30", OPTION_VAL_30_NO },
+         { "35", OPTION_VAL_35_NO },
+         { "40", OPTION_VAL_40_NO },
+         { "45", OPTION_VAL_45_NO },
+         { "50", OPTION_VAL_50_NO },
+         { "55", OPTION_VAL_55_NO },
+         { "60", OPTION_VAL_60_NO },
+         { "65", OPTION_VAL_65_NO },
+         { "70", OPTION_VAL_70_NO },
+         { "75", OPTION_VAL_75_NO },
+         { "80", OPTION_VAL_80_NO },
+         { "85", OPTION_VAL_85_NO },
+         { "90", OPTION_VAL_90_NO },
+         { "95", OPTION_VAL_95_NO },
+         { NULL, NULL },
+      },
+      "60"
+   },
+   {
+      "mgba_allow_opposing_directions",
+      MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_NO,
+      NULL,
+      MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_NO,
+      NULL,
+      "input",
+      {
+         { "no",  "disabled" },
+         { "yes", "enabled" },
+         { NULL, NULL },
+      },
+      "no"
+   },
+   {
+      "mgba_solar_sensor_level",
+      MGBA_SOLAR_SENSOR_LEVEL_LABEL_NO,
+      NULL,
+      MGBA_SOLAR_SENSOR_LEVEL_INFO_0_NO,
+      NULL,
+      "input",
+      {
+         { "sensor", OPTION_VAL_SENSOR_NO },
+         { "0",      NULL },
+         { "1",      NULL },
+         { "2",      NULL },
+         { "3",      NULL },
+         { "4",      NULL },
+         { "5",      NULL },
+         { "6",      NULL },
+         { "7",      NULL },
+         { "8",      NULL },
+         { "9",      NULL },
+         { "10",     NULL },
+         { NULL,     NULL },
+      },
+      "0"
+   },
+   {
+      "mgba_force_gbp",
+      MGBA_FORCE_GBP_LABEL_NO,
+      NULL,
+      MGBA_FORCE_GBP_INFO_0_NO,
+      NULL,
+      "input",
+      {
+         { "OFF", "disabled" },
+         { "ON",  "enabled" },
+         { NULL, NULL },
+      },
+      "OFF"
+   },
+   {
+      "mgba_idle_optimization",
+      MGBA_IDLE_OPTIMIZATION_LABEL_NO,
+      NULL,
+      MGBA_IDLE_OPTIMIZATION_INFO_0_NO,
+      NULL,
+      "performance",
+      {
+         { "Remove Known",      OPTION_VAL_REMOVE_KNOWN_NO },
+         { "Detect and Remove", OPTION_VAL_DETECT_AND_REMOVE_NO },
+         { "Don't Remove",      OPTION_VAL_DON_T_REMOVE_NO },
+         { NULL, NULL },
+      },
+      "Remove Known"
+   },
+   {
+      "mgba_frameskip",
+      MGBA_FRAMESKIP_LABEL_NO,
+      NULL,
+      MGBA_FRAMESKIP_INFO_0_NO,
+      NULL,
+      "performance",
+      {
+         { "disabled",       NULL },
+         { "auto",           OPTION_VAL_AUTO_NO },
+         { "auto_threshold", OPTION_VAL_AUTO_THRESHOLD_NO },
+         { "fixed_interval", OPTION_VAL_FIXED_INTERVAL_NO },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "mgba_frameskip_threshold",
+      MGBA_FRAMESKIP_THRESHOLD_LABEL_NO,
+      NULL,
+      MGBA_FRAMESKIP_THRESHOLD_INFO_0_NO,
+      NULL,
+      "performance",
+      {
+         { "15", NULL },
+         { "18", NULL },
+         { "21", NULL },
+         { "24", NULL },
+         { "27", NULL },
+         { "30", NULL },
+         { "33", NULL },
+         { "36", NULL },
+         { "39", NULL },
+         { "42", NULL },
+         { "45", NULL },
+         { "48", NULL },
+         { "51", NULL },
+         { "54", NULL },
+         { "57", NULL },
+         { "60", NULL },
+         { NULL, NULL },
+      },
+      "33"
+   },
+   {
+      "mgba_frameskip_interval",
+      MGBA_FRAMESKIP_INTERVAL_LABEL_NO,
+      NULL,
+      MGBA_FRAMESKIP_INTERVAL_INFO_0_NO,
+      NULL,
+      "performance",
+      {
+         { "0",  NULL },
+         { "1",  NULL },
+         { "2",  NULL },
+         { "3",  NULL },
+         { "4",  NULL },
+         { "5",  NULL },
+         { "6",  NULL },
+         { "7",  NULL },
+         { "8",  NULL },
+         { "9",  NULL },
+         { "10", NULL },
+         { NULL, NULL },
+      },
+      "0"
+   },
+   { NULL, NULL, NULL, NULL, NULL, NULL, {{0}}, NULL },
+};
+struct retro_core_options_v2 options_no = {
+   option_cats_no,
+   option_defs_no
+};
+
 /* RETRO_LANGUAGE_OC */
 
 #define CATEGORY_SYSTEM_LABEL_OC NULL
@@ -10482,6 +10891,7 @@ struct retro_core_options_v2 options_nl = {
 #define OPTION_VAL_GRAYSCALE_OC NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_OC NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_OC NULL
+#define OPTION_VAL_0_OC NULL
 #define OPTION_VAL_1_OC NULL
 #define OPTION_VAL_2_OC NULL
 #define OPTION_VAL_3_OC NULL
@@ -10523,8 +10933,6 @@ struct retro_core_options_v2 options_nl = {
 #define OPTION_VAL_95_OC NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_OC NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_OC NULL
-#define OPTION_VAL_NO_OC NULL
-#define OPTION_VAL_YES_OC NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_OC NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_OC NULL
 #define OPTION_VAL_SENSOR_OC NULL
@@ -10644,13 +11052,13 @@ struct retro_core_option_v2_definition option_defs_oc[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_OC },
          { "1", OPTION_VAL_1_OC },
          { "2", OPTION_VAL_2_OC },
          { "3", OPTION_VAL_3_OC },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -10754,8 +11162,8 @@ struct retro_core_option_v2_definition option_defs_oc[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_OC },
-         { "yes", OPTION_VAL_YES_OC },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -10916,6 +11324,7 @@ struct retro_core_options_v2 options_oc = {
 #define OPTION_VAL_GRAYSCALE_PL "Odcienie szarości"
 #define MGBA_GB_COLORS_PRESET_LABEL_PL "Sprzętowe predefiniowane palety Game Boy (Restart)"
 #define MGBA_GB_COLORS_PRESET_INFO_0_PL "Użyj palet dla gier Game Boy, które mają presety w kolorze Game Boy Color lub Super Game Boy."
+#define OPTION_VAL_0_PL "Domyślne ustawienie Game Boy"
 #define OPTION_VAL_1_PL "Tylko ustawienia kolorów Game Boy Color"
 #define OPTION_VAL_2_PL "Tylko ustawienia kolorów Super Game Boy"
 #define OPTION_VAL_3_PL "Dowolne dostępne wstępne ustawienia"
@@ -10957,8 +11366,6 @@ struct retro_core_options_v2 options_oc = {
 #define OPTION_VAL_95_PL NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_PL NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_PL NULL
-#define OPTION_VAL_NO_PL "nie"
-#define OPTION_VAL_YES_PL "tak"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_PL NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_PL NULL
 #define OPTION_VAL_SENSOR_PL "Użyj czujnika urządzenia, jeśli jest dostępny"
@@ -11078,13 +11485,13 @@ struct retro_core_option_v2_definition option_defs_pl[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_PL },
          { "1", OPTION_VAL_1_PL },
          { "2", OPTION_VAL_2_PL },
          { "3", OPTION_VAL_3_PL },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -11188,8 +11595,8 @@ struct retro_core_option_v2_definition option_defs_pl[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_PL },
-         { "yes", OPTION_VAL_YES_PL },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -11347,9 +11754,10 @@ struct retro_core_options_v2 options_pl = {
 #define MGBA_SKIP_BIOS_INFO_0_PT_BR "Ao usar uma BIOS e um carregador de inicialização oficial, omitirá a animação do logotipo na inicialização. Esta configuração será ignorada caso 'Usar arquivo de BIOS se encontrado' estiver desativada."
 #define MGBA_GB_COLORS_LABEL_PT_BR "Paleta padrão do Game Boy"
 #define MGBA_GB_COLORS_INFO_0_PT_BR "Seleciona a paleta que será usada com jogos de Game Boy que não são compatíveis com Game Boy Color ou Super Game Boy ou ao forçar o modelo a Game Boy."
-#define OPTION_VAL_GRAYSCALE_PT_BR "Tons de cinza"
+#define OPTION_VAL_GRAYSCALE_PT_BR "Nível de cinza"
 #define MGBA_GB_COLORS_PRESET_LABEL_PT_BR "Paletas do hardware de Game Boy (requer reinício)"
 #define MGBA_GB_COLORS_PRESET_INFO_0_PT_BR "Usa as paletas específicas nos jogos de Game Boy para os quais o Game Boy Color ou Super Game Boy tem predefinições atribuídas a eles."
+#define OPTION_VAL_0_PT_BR "Predefinição padrão do Game Boy"
 #define OPTION_VAL_1_PT_BR "Apenas predefinições de Game Boy Color"
 #define OPTION_VAL_2_PT_BR "Apenas predefinições de Super Game Boy"
 #define OPTION_VAL_3_PT_BR "Qualquer predefinição disponível"
@@ -11362,7 +11770,7 @@ struct retro_core_options_v2 options_pl = {
 #define MGBA_INTERFRAME_BLENDING_INFO_0_PT_BR "Simula o efeito 'fantasma' da tela LCD. 'Simples' mistura metade dos quadros anterior e seguinte. 'Inteligente' tentará detectar a tremulação na tela e irá misturar apenas metade dos quadros nos pixels afetados. 'Efeito fantasma do LCD' simula os tempos naturais de resposta de uma tela de LCD, combinando vários quadros armazenados em buffer. As fusões 'Simples' ou 'Inteligente' são necessárias para jogos que precisam do efeito 'fantasma' para exibir transparência (Wave Race, Chikyuu Kaihou Gun ZAS, F-Zero, a saga Boktai...)."
 #define OPTION_VAL_MIX_PT_BR "Simples"
 #define OPTION_VAL_MIX_SMART_PT_BR "Inteligente"
-#define OPTION_VAL_LCD_GHOSTING_PT_BR "Efeito fantasma do LCD (preciso)"
+#define OPTION_VAL_LCD_GHOSTING_PT_BR "Efeito fantasma do LCD (detalhado)"
 #define OPTION_VAL_LCD_GHOSTING_FAST_PT_BR "Efeito fantasma do LCD (rápido)"
 #define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_PT_BR "Filtro de áudio"
 #define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_CAT_PT_BR "Filtro passa-baixo"
@@ -11391,8 +11799,6 @@ struct retro_core_options_v2 options_pl = {
 #define OPTION_VAL_95_PT_BR NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_PT_BR "Permitir entradas direcionais opostas"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_PT_BR "Esta opção permitirá pressionar, alternar ou segurar rapidamente as direções esquerda e direita (ou cima e baixo) ao mesmo tempo. Pode causar falhas de movimento."
-#define OPTION_VAL_NO_PT_BR "não"
-#define OPTION_VAL_YES_PT_BR "sim"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_PT_BR "Nível do sensor solar"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_PT_BR "Define a intensidade da luz do sol no ambiente. Pode ser usado por jogos que incluem um sensor solar em seus cartuchos, por exemplo: a série Boktai."
 #define OPTION_VAL_SENSOR_PT_BR "Usa um dispositivo sensor, se disponível"
@@ -11512,13 +11918,13 @@ struct retro_core_option_v2_definition option_defs_pt_br[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_PT_BR },
          { "1", OPTION_VAL_1_PT_BR },
          { "2", OPTION_VAL_2_PT_BR },
          { "3", OPTION_VAL_3_PT_BR },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -11622,8 +12028,8 @@ struct retro_core_option_v2_definition option_defs_pt_br[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_PT_BR },
-         { "yes", OPTION_VAL_YES_PT_BR },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -11784,6 +12190,7 @@ struct retro_core_options_v2 options_pt_br = {
 #define OPTION_VAL_GRAYSCALE_PT_PT NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_PT_PT NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_PT_PT NULL
+#define OPTION_VAL_0_PT_PT NULL
 #define OPTION_VAL_1_PT_PT NULL
 #define OPTION_VAL_2_PT_PT NULL
 #define OPTION_VAL_3_PT_PT NULL
@@ -11825,8 +12232,6 @@ struct retro_core_options_v2 options_pt_br = {
 #define OPTION_VAL_95_PT_PT NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_PT_PT NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_PT_PT NULL
-#define OPTION_VAL_NO_PT_PT "não"
-#define OPTION_VAL_YES_PT_PT "sim"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_PT_PT NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_PT_PT NULL
 #define OPTION_VAL_SENSOR_PT_PT NULL
@@ -11946,13 +12351,13 @@ struct retro_core_option_v2_definition option_defs_pt_pt[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_PT_PT },
          { "1", OPTION_VAL_1_PT_PT },
          { "2", OPTION_VAL_2_PT_PT },
          { "3", OPTION_VAL_3_PT_PT },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -12056,8 +12461,8 @@ struct retro_core_option_v2_definition option_defs_pt_pt[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_PT_PT },
-         { "yes", OPTION_VAL_YES_PT_PT },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -12218,6 +12623,7 @@ struct retro_core_options_v2 options_pt_pt = {
 #define OPTION_VAL_GRAYSCALE_RO NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_RO NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_RO NULL
+#define OPTION_VAL_0_RO NULL
 #define OPTION_VAL_1_RO NULL
 #define OPTION_VAL_2_RO NULL
 #define OPTION_VAL_3_RO NULL
@@ -12259,8 +12665,6 @@ struct retro_core_options_v2 options_pt_pt = {
 #define OPTION_VAL_95_RO NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_RO NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_RO NULL
-#define OPTION_VAL_NO_RO NULL
-#define OPTION_VAL_YES_RO NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_RO NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_RO NULL
 #define OPTION_VAL_SENSOR_RO NULL
@@ -12380,13 +12784,13 @@ struct retro_core_option_v2_definition option_defs_ro[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_RO },
          { "1", OPTION_VAL_1_RO },
          { "2", OPTION_VAL_2_RO },
          { "3", OPTION_VAL_3_RO },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -12490,8 +12894,8 @@ struct retro_core_option_v2_definition option_defs_ro[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_RO },
-         { "yes", OPTION_VAL_YES_RO },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -12652,6 +13056,7 @@ struct retro_core_options_v2 options_ro = {
 #define OPTION_VAL_GRAYSCALE_RU "Оттенки серого"
 #define MGBA_GB_COLORS_PRESET_LABEL_RU "Встроенные пресеты палитр Game Boy (перезапуск)"
 #define MGBA_GB_COLORS_PRESET_INFO_0_RU "Использовать палитры игр Game Boy, для которых есть встроенные пресеты на Game Boy Color или Super Game Boy."
+#define OPTION_VAL_0_RU "Стандартный пресет Game Boy"
 #define OPTION_VAL_1_RU "Только пресеты Game Boy Color"
 #define OPTION_VAL_2_RU "Только пресеты Super Game Boy"
 #define OPTION_VAL_3_RU "Любые доступные пресеты"
@@ -12693,8 +13098,6 @@ struct retro_core_options_v2 options_ro = {
 #define OPTION_VAL_95_RU NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_RU "Разрешать нажатия в разные стороны"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_RU "Позволяет нажимать / быстро менять / зажимать одновременно направления влево и вправо (или вверх и вниз). Может вызывать глитчи, связанные с перемещением."
-#define OPTION_VAL_NO_RU "Нет"
-#define OPTION_VAL_YES_RU "Да"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_RU "Уровень датчика света"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_RU "Устанавливает интенсивность окружающего освещения. Может использоваться в играх с картриджами, оснащёнными датчиком света (напр. серия Boktai)."
 #define OPTION_VAL_SENSOR_RU "Использовать датчик устройства"
@@ -12814,13 +13217,13 @@ struct retro_core_option_v2_definition option_defs_ru[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_RU },
          { "1", OPTION_VAL_1_RU },
          { "2", OPTION_VAL_2_RU },
          { "3", OPTION_VAL_3_RU },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -12924,8 +13327,8 @@ struct retro_core_option_v2_definition option_defs_ru[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_RU },
-         { "yes", OPTION_VAL_YES_RU },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -13086,6 +13489,7 @@ struct retro_core_options_v2 options_ru = {
 #define OPTION_VAL_GRAYSCALE_SI NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_SI NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_SI NULL
+#define OPTION_VAL_0_SI NULL
 #define OPTION_VAL_1_SI NULL
 #define OPTION_VAL_2_SI NULL
 #define OPTION_VAL_3_SI NULL
@@ -13127,8 +13531,6 @@ struct retro_core_options_v2 options_ru = {
 #define OPTION_VAL_95_SI NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_SI NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_SI NULL
-#define OPTION_VAL_NO_SI NULL
-#define OPTION_VAL_YES_SI NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_SI NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_SI NULL
 #define OPTION_VAL_SENSOR_SI NULL
@@ -13248,13 +13650,13 @@ struct retro_core_option_v2_definition option_defs_si[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_SI },
          { "1", OPTION_VAL_1_SI },
          { "2", OPTION_VAL_2_SI },
          { "3", OPTION_VAL_3_SI },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -13358,8 +13760,8 @@ struct retro_core_option_v2_definition option_defs_si[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_SI },
-         { "yes", OPTION_VAL_YES_SI },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -13520,6 +13922,7 @@ struct retro_core_options_v2 options_si = {
 #define OPTION_VAL_GRAYSCALE_SK NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_SK NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_SK NULL
+#define OPTION_VAL_0_SK NULL
 #define OPTION_VAL_1_SK NULL
 #define OPTION_VAL_2_SK NULL
 #define OPTION_VAL_3_SK NULL
@@ -13561,8 +13964,6 @@ struct retro_core_options_v2 options_si = {
 #define OPTION_VAL_95_SK NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_SK NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_SK NULL
-#define OPTION_VAL_NO_SK "nie"
-#define OPTION_VAL_YES_SK "áno"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_SK NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_SK NULL
 #define OPTION_VAL_SENSOR_SK NULL
@@ -13682,13 +14083,13 @@ struct retro_core_option_v2_definition option_defs_sk[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_SK },
          { "1", OPTION_VAL_1_SK },
          { "2", OPTION_VAL_2_SK },
          { "3", OPTION_VAL_3_SK },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -13792,8 +14193,8 @@ struct retro_core_option_v2_definition option_defs_sk[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_SK },
-         { "yes", OPTION_VAL_YES_SK },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -13954,6 +14355,7 @@ struct retro_core_options_v2 options_sk = {
 #define OPTION_VAL_GRAYSCALE_SR NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_SR NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_SR NULL
+#define OPTION_VAL_0_SR NULL
 #define OPTION_VAL_1_SR NULL
 #define OPTION_VAL_2_SR NULL
 #define OPTION_VAL_3_SR NULL
@@ -13995,8 +14397,6 @@ struct retro_core_options_v2 options_sk = {
 #define OPTION_VAL_95_SR NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_SR NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_SR NULL
-#define OPTION_VAL_NO_SR NULL
-#define OPTION_VAL_YES_SR NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_SR NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_SR NULL
 #define OPTION_VAL_SENSOR_SR NULL
@@ -14116,13 +14516,13 @@ struct retro_core_option_v2_definition option_defs_sr[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_SR },
          { "1", OPTION_VAL_1_SR },
          { "2", OPTION_VAL_2_SR },
          { "3", OPTION_VAL_3_SR },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -14226,8 +14626,8 @@ struct retro_core_option_v2_definition option_defs_sr[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_SR },
-         { "yes", OPTION_VAL_YES_SR },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -14370,7 +14770,7 @@ struct retro_core_options_v2 options_sr = {
 #define CATEGORY_AUDIO_INFO_0_SV NULL
 #define CATEGORY_INPUT_LABEL_SV NULL
 #define CATEGORY_INPUT_INFO_0_SV NULL
-#define CATEGORY_PERFORMANCE_LABEL_SV NULL
+#define CATEGORY_PERFORMANCE_LABEL_SV "Prestanda"
 #define CATEGORY_PERFORMANCE_INFO_0_SV NULL
 #define MGBA_GB_MODEL_LABEL_SV NULL
 #define MGBA_GB_MODEL_INFO_0_SV NULL
@@ -14385,24 +14785,25 @@ struct retro_core_options_v2 options_sr = {
 #define MGBA_SKIP_BIOS_INFO_0_SV NULL
 #define MGBA_GB_COLORS_LABEL_SV NULL
 #define MGBA_GB_COLORS_INFO_0_SV NULL
-#define OPTION_VAL_GRAYSCALE_SV NULL
+#define OPTION_VAL_GRAYSCALE_SV "Gråskala"
 #define MGBA_GB_COLORS_PRESET_LABEL_SV NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_SV NULL
+#define OPTION_VAL_0_SV NULL
 #define OPTION_VAL_1_SV NULL
 #define OPTION_VAL_2_SV NULL
 #define OPTION_VAL_3_SV NULL
 #define MGBA_SGB_BORDERS_LABEL_SV NULL
 #define MGBA_SGB_BORDERS_INFO_0_SV NULL
-#define MGBA_COLOR_CORRECTION_LABEL_SV NULL
+#define MGBA_COLOR_CORRECTION_LABEL_SV "Färgkorrigering"
 #define MGBA_COLOR_CORRECTION_INFO_0_SV NULL
 #define OPTION_VAL_AUTO_SV "Automatiskt"
 #define MGBA_INTERFRAME_BLENDING_LABEL_SV NULL
 #define MGBA_INTERFRAME_BLENDING_INFO_0_SV NULL
-#define OPTION_VAL_MIX_SV NULL
+#define OPTION_VAL_MIX_SV "Simpel"
 #define OPTION_VAL_MIX_SMART_SV NULL
 #define OPTION_VAL_LCD_GHOSTING_SV NULL
 #define OPTION_VAL_LCD_GHOSTING_FAST_SV NULL
-#define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_SV NULL
+#define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_SV "Ljudfilter"
 #define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_CAT_SV NULL
 #define MGBA_AUDIO_LOW_PASS_FILTER_INFO_0_SV NULL
 #define MGBA_AUDIO_LOW_PASS_RANGE_LABEL_SV NULL
@@ -14429,8 +14830,6 @@ struct retro_core_options_v2 options_sr = {
 #define OPTION_VAL_95_SV NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_SV NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_SV NULL
-#define OPTION_VAL_NO_SV NULL
-#define OPTION_VAL_YES_SV NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_SV NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_SV NULL
 #define OPTION_VAL_SENSOR_SV NULL
@@ -14550,13 +14949,13 @@ struct retro_core_option_v2_definition option_defs_sv[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_SV },
          { "1", OPTION_VAL_1_SV },
          { "2", OPTION_VAL_2_SV },
          { "3", OPTION_VAL_3_SV },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -14660,8 +15059,8 @@ struct retro_core_option_v2_definition option_defs_sv[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_SV },
-         { "yes", OPTION_VAL_YES_SV },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -14822,6 +15221,7 @@ struct retro_core_options_v2 options_sv = {
 #define OPTION_VAL_GRAYSCALE_TR "Gri Tonlama"
 #define MGBA_GB_COLORS_PRESET_LABEL_TR "Donanım Ön Ayarlı Game Boy Paletleri (Yeniden Başlat)"
 #define MGBA_GB_COLORS_PRESET_INFO_0_TR "Game Boy Color veya Super Game Boy üzerinde ön ayarları olan Game Boy oyunları için paletleri kullanın."
+#define OPTION_VAL_0_TR "Varsayılan Game Boy ön ayarı"
 #define OPTION_VAL_1_TR "Yalnızca Game Boy Color ön ayarları"
 #define OPTION_VAL_2_TR "Yalnızca Super Game Boy ön ayarları"
 #define OPTION_VAL_3_TR "Mevcut herhangi bir ön ayar"
@@ -14863,8 +15263,6 @@ struct retro_core_options_v2 options_sv = {
 #define OPTION_VAL_95_TR "%95"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_TR "Karşı Yönlü Girişe İzin Ver"
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_TR "Bunu etkinleştirmek aynı anda hem sola hem de sağa (veya yukarı ve aşağı) yönlere basma/hızlı değiştirme/tutma imkanı sağlar. Bu harekete dayalı hatalara neden olabilir."
-#define OPTION_VAL_NO_TR "hayır"
-#define OPTION_VAL_YES_TR "evet"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_TR "Güneş Sensörü Seviyesi"
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_TR "Ortamdaki güneş ışığı yoğunluğunu ayarlar. Kartuşlarında güneş sensörü bulunan oyunlar tarafından kullanılabilir, örneğin: Boktai serisi."
 #define OPTION_VAL_SENSOR_TR "Varsa cihaz sensörünü kullanın"
@@ -14984,13 +15382,13 @@ struct retro_core_option_v2_definition option_defs_tr[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_TR },
          { "1", OPTION_VAL_1_TR },
          { "2", OPTION_VAL_2_TR },
          { "3", OPTION_VAL_3_TR },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -15094,8 +15492,8 @@ struct retro_core_option_v2_definition option_defs_tr[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_TR },
-         { "yes", OPTION_VAL_YES_TR },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -15256,6 +15654,7 @@ struct retro_core_options_v2 options_tr = {
 #define OPTION_VAL_GRAYSCALE_UK NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_UK NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_UK NULL
+#define OPTION_VAL_0_UK NULL
 #define OPTION_VAL_1_UK NULL
 #define OPTION_VAL_2_UK NULL
 #define OPTION_VAL_3_UK NULL
@@ -15297,8 +15696,6 @@ struct retro_core_options_v2 options_tr = {
 #define OPTION_VAL_95_UK NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_UK NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_UK NULL
-#define OPTION_VAL_NO_UK "ні"
-#define OPTION_VAL_YES_UK "так"
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_UK NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_UK NULL
 #define OPTION_VAL_SENSOR_UK NULL
@@ -15418,13 +15815,13 @@ struct retro_core_option_v2_definition option_defs_uk[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_UK },
          { "1", OPTION_VAL_1_UK },
          { "2", OPTION_VAL_2_UK },
          { "3", OPTION_VAL_3_UK },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -15528,8 +15925,8 @@ struct retro_core_option_v2_definition option_defs_uk[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_UK },
-         { "yes", OPTION_VAL_YES_UK },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"
@@ -15661,6 +16058,439 @@ struct retro_core_options_v2 options_uk = {
    option_defs_uk
 };
 
+/* RETRO_LANGUAGE_VAL */
+
+#define CATEGORY_SYSTEM_LABEL_VAL NULL
+#define CATEGORY_SYSTEM_INFO_0_VAL NULL
+#define CATEGORY_VIDEO_LABEL_VAL "Vídeo"
+#define CATEGORY_VIDEO_INFO_0_VAL NULL
+#define CATEGORY_VIDEO_INFO_1_VAL NULL
+#define CATEGORY_AUDIO_LABEL_VAL "Àudio"
+#define CATEGORY_AUDIO_INFO_0_VAL NULL
+#define CATEGORY_INPUT_LABEL_VAL NULL
+#define CATEGORY_INPUT_INFO_0_VAL NULL
+#define CATEGORY_PERFORMANCE_LABEL_VAL NULL
+#define CATEGORY_PERFORMANCE_INFO_0_VAL NULL
+#define MGBA_GB_MODEL_LABEL_VAL NULL
+#define MGBA_GB_MODEL_INFO_0_VAL NULL
+#define OPTION_VAL_AUTODETECT_VAL NULL
+#define OPTION_VAL_GAME_BOY_VAL NULL
+#define OPTION_VAL_SUPER_GAME_BOY_VAL NULL
+#define OPTION_VAL_GAME_BOY_COLOR_VAL NULL
+#define OPTION_VAL_GAME_BOY_ADVANCE_VAL NULL
+#define MGBA_USE_BIOS_LABEL_VAL NULL
+#define MGBA_USE_BIOS_INFO_0_VAL NULL
+#define MGBA_SKIP_BIOS_LABEL_VAL NULL
+#define MGBA_SKIP_BIOS_INFO_0_VAL NULL
+#define MGBA_GB_COLORS_LABEL_VAL NULL
+#define MGBA_GB_COLORS_INFO_0_VAL NULL
+#define OPTION_VAL_GRAYSCALE_VAL NULL
+#define MGBA_GB_COLORS_PRESET_LABEL_VAL NULL
+#define MGBA_GB_COLORS_PRESET_INFO_0_VAL NULL
+#define OPTION_VAL_0_VAL NULL
+#define OPTION_VAL_1_VAL NULL
+#define OPTION_VAL_2_VAL NULL
+#define OPTION_VAL_3_VAL NULL
+#define MGBA_SGB_BORDERS_LABEL_VAL NULL
+#define MGBA_SGB_BORDERS_INFO_0_VAL NULL
+#define MGBA_COLOR_CORRECTION_LABEL_VAL NULL
+#define MGBA_COLOR_CORRECTION_INFO_0_VAL NULL
+#define OPTION_VAL_AUTO_VAL NULL
+#define MGBA_INTERFRAME_BLENDING_LABEL_VAL NULL
+#define MGBA_INTERFRAME_BLENDING_INFO_0_VAL NULL
+#define OPTION_VAL_MIX_VAL NULL
+#define OPTION_VAL_MIX_SMART_VAL NULL
+#define OPTION_VAL_LCD_GHOSTING_VAL NULL
+#define OPTION_VAL_LCD_GHOSTING_FAST_VAL NULL
+#define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_VAL NULL
+#define MGBA_AUDIO_LOW_PASS_FILTER_LABEL_CAT_VAL NULL
+#define MGBA_AUDIO_LOW_PASS_FILTER_INFO_0_VAL NULL
+#define MGBA_AUDIO_LOW_PASS_RANGE_LABEL_VAL NULL
+#define MGBA_AUDIO_LOW_PASS_RANGE_LABEL_CAT_VAL NULL
+#define MGBA_AUDIO_LOW_PASS_RANGE_INFO_0_VAL NULL
+#define OPTION_VAL_5_VAL NULL
+#define OPTION_VAL_10_VAL NULL
+#define OPTION_VAL_15_VAL NULL
+#define OPTION_VAL_20_VAL NULL
+#define OPTION_VAL_25_VAL NULL
+#define OPTION_VAL_30_VAL NULL
+#define OPTION_VAL_35_VAL NULL
+#define OPTION_VAL_40_VAL NULL
+#define OPTION_VAL_45_VAL NULL
+#define OPTION_VAL_50_VAL NULL
+#define OPTION_VAL_55_VAL NULL
+#define OPTION_VAL_60_VAL NULL
+#define OPTION_VAL_65_VAL NULL
+#define OPTION_VAL_70_VAL NULL
+#define OPTION_VAL_75_VAL NULL
+#define OPTION_VAL_80_VAL NULL
+#define OPTION_VAL_85_VAL NULL
+#define OPTION_VAL_90_VAL NULL
+#define OPTION_VAL_95_VAL NULL
+#define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_VAL NULL
+#define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_VAL NULL
+#define MGBA_SOLAR_SENSOR_LEVEL_LABEL_VAL NULL
+#define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_VAL NULL
+#define OPTION_VAL_SENSOR_VAL NULL
+#define MGBA_FORCE_GBP_LABEL_VAL NULL
+#define MGBA_FORCE_GBP_INFO_0_VAL NULL
+#define MGBA_IDLE_OPTIMIZATION_LABEL_VAL NULL
+#define MGBA_IDLE_OPTIMIZATION_INFO_0_VAL NULL
+#define OPTION_VAL_REMOVE_KNOWN_VAL NULL
+#define OPTION_VAL_DETECT_AND_REMOVE_VAL NULL
+#define OPTION_VAL_DON_T_REMOVE_VAL NULL
+#define MGBA_FRAMESKIP_LABEL_VAL NULL
+#define MGBA_FRAMESKIP_INFO_0_VAL NULL
+#define OPTION_VAL_AUTO_THRESHOLD_VAL NULL
+#define OPTION_VAL_FIXED_INTERVAL_VAL NULL
+#define MGBA_FRAMESKIP_THRESHOLD_LABEL_VAL NULL
+#define MGBA_FRAMESKIP_THRESHOLD_INFO_0_VAL NULL
+#define MGBA_FRAMESKIP_INTERVAL_LABEL_VAL NULL
+#define MGBA_FRAMESKIP_INTERVAL_INFO_0_VAL NULL
+
+struct retro_core_option_v2_category option_cats_val[] = {
+   {
+      "system",
+      CATEGORY_SYSTEM_LABEL_VAL,
+      CATEGORY_SYSTEM_INFO_0_VAL
+   },
+   {
+      "video",
+      CATEGORY_VIDEO_LABEL_VAL,
+#if defined(COLOR_16_BIT) && defined(COLOR_5_6_5)
+      CATEGORY_VIDEO_INFO_0_VAL
+#else
+      CATEGORY_VIDEO_INFO_1_VAL
+#endif
+   },
+   {
+      "audio",
+      CATEGORY_AUDIO_LABEL_VAL,
+      CATEGORY_AUDIO_INFO_0_VAL
+   },
+   {
+      "input",
+      CATEGORY_INPUT_LABEL_VAL,
+      CATEGORY_INPUT_INFO_0_VAL
+   },
+   {
+      "performance",
+      CATEGORY_PERFORMANCE_LABEL_VAL,
+      CATEGORY_PERFORMANCE_INFO_0_VAL
+   },
+   { NULL, NULL, NULL },
+};
+struct retro_core_option_v2_definition option_defs_val[] = {
+   {
+      "mgba_gb_model",
+      MGBA_GB_MODEL_LABEL_VAL,
+      NULL,
+      MGBA_GB_MODEL_INFO_0_VAL,
+      NULL,
+      "system",
+      {
+         { "Autodetect",       OPTION_VAL_AUTODETECT_VAL },
+         { "Game Boy",         OPTION_VAL_GAME_BOY_VAL },
+         { "Super Game Boy",   OPTION_VAL_SUPER_GAME_BOY_VAL },
+         { "Game Boy Color",   OPTION_VAL_GAME_BOY_COLOR_VAL },
+         { "Game Boy Advance", OPTION_VAL_GAME_BOY_ADVANCE_VAL },
+         { NULL, NULL },
+      },
+      "Autodetect"
+   },
+   {
+      "mgba_use_bios",
+      MGBA_USE_BIOS_LABEL_VAL,
+      NULL,
+      MGBA_USE_BIOS_INFO_0_VAL,
+      NULL,
+      "system",
+      {
+         { "ON",  "enabled" },
+         { "OFF", "disabled" },
+         { NULL, NULL },
+      },
+      "ON"
+   },
+   {
+      "mgba_skip_bios",
+      MGBA_SKIP_BIOS_LABEL_VAL,
+      NULL,
+      MGBA_SKIP_BIOS_INFO_0_VAL,
+      NULL,
+      "system",
+      {
+         { "OFF", "disabled" },
+         { "ON",  "enabled" },
+         { NULL, NULL },
+      },
+      "OFF"
+   },
+   {
+      "mgba_gb_colors",
+      MGBA_GB_COLORS_LABEL_VAL,
+      NULL,
+      MGBA_GB_COLORS_INFO_0_VAL,
+      NULL,
+      "video",
+      {
+         /* This list is populated at runtime */
+         { "Grayscale", OPTION_VAL_GRAYSCALE_VAL },
+         { NULL, NULL },
+      },
+      "Grayscale"
+   },
+   {
+      "mgba_gb_colors_preset",
+      MGBA_GB_COLORS_PRESET_LABEL_VAL,
+      NULL,
+      MGBA_GB_COLORS_PRESET_INFO_0_VAL,
+      NULL,
+      "video",
+      {
+         { "0", OPTION_VAL_0_VAL },
+         { "1", OPTION_VAL_1_VAL },
+         { "2", OPTION_VAL_2_VAL },
+         { "3", OPTION_VAL_3_VAL },
+         { NULL, NULL },
+      },
+      "0"
+   },
+   {
+      "mgba_sgb_borders",
+      MGBA_SGB_BORDERS_LABEL_VAL,
+      NULL,
+      MGBA_SGB_BORDERS_INFO_0_VAL,
+      NULL,
+      "video",
+      {
+         { "ON",  "enabled" },
+         { "OFF", "disabled" },
+         { NULL, NULL },
+      },
+      "ON"
+   },
+#if defined(COLOR_16_BIT) && defined(COLOR_5_6_5)
+   {
+      "mgba_color_correction",
+      MGBA_COLOR_CORRECTION_LABEL_VAL,
+      NULL,
+      MGBA_COLOR_CORRECTION_INFO_0_VAL,
+      NULL,
+      "video",
+      {
+         { "OFF",  "disabled" },
+         { "GBA",  OPTION_VAL_GAME_BOY_ADVANCE_VAL },
+         { "GBC",  OPTION_VAL_GAME_BOY_COLOR_VAL },
+         { "Auto", OPTION_VAL_AUTO_VAL },
+         { NULL, NULL },
+      },
+      "OFF"
+   },
+   {
+      "mgba_interframe_blending",
+      MGBA_INTERFRAME_BLENDING_LABEL_VAL,
+      NULL,
+      MGBA_INTERFRAME_BLENDING_INFO_0_VAL,
+      NULL,
+      "video",
+      {
+         { "OFF",               "disabled" },
+         { "mix",               OPTION_VAL_MIX_VAL },
+         { "mix_smart",         OPTION_VAL_MIX_SMART_VAL },
+         { "lcd_ghosting",      OPTION_VAL_LCD_GHOSTING_VAL },
+         { "lcd_ghosting_fast", OPTION_VAL_LCD_GHOSTING_FAST_VAL },
+         { NULL, NULL },
+      },
+      "OFF"
+   },
+#endif
+   {
+      "mgba_audio_low_pass_filter",
+      MGBA_AUDIO_LOW_PASS_FILTER_LABEL_VAL,
+      MGBA_AUDIO_LOW_PASS_FILTER_LABEL_CAT_VAL,
+      MGBA_AUDIO_LOW_PASS_FILTER_INFO_0_VAL,
+      NULL,
+      "audio",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "mgba_audio_low_pass_range",
+      MGBA_AUDIO_LOW_PASS_RANGE_LABEL_VAL,
+      MGBA_AUDIO_LOW_PASS_RANGE_LABEL_CAT_VAL,
+      MGBA_AUDIO_LOW_PASS_RANGE_INFO_0_VAL,
+      NULL,
+      "audio",
+      {
+         { "5",  OPTION_VAL_5_VAL },
+         { "10", OPTION_VAL_10_VAL },
+         { "15", OPTION_VAL_15_VAL },
+         { "20", OPTION_VAL_20_VAL },
+         { "25", OPTION_VAL_25_VAL },
+         { "30", OPTION_VAL_30_VAL },
+         { "35", OPTION_VAL_35_VAL },
+         { "40", OPTION_VAL_40_VAL },
+         { "45", OPTION_VAL_45_VAL },
+         { "50", OPTION_VAL_50_VAL },
+         { "55", OPTION_VAL_55_VAL },
+         { "60", OPTION_VAL_60_VAL },
+         { "65", OPTION_VAL_65_VAL },
+         { "70", OPTION_VAL_70_VAL },
+         { "75", OPTION_VAL_75_VAL },
+         { "80", OPTION_VAL_80_VAL },
+         { "85", OPTION_VAL_85_VAL },
+         { "90", OPTION_VAL_90_VAL },
+         { "95", OPTION_VAL_95_VAL },
+         { NULL, NULL },
+      },
+      "60"
+   },
+   {
+      "mgba_allow_opposing_directions",
+      MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_VAL,
+      NULL,
+      MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_VAL,
+      NULL,
+      "input",
+      {
+         { "no",  "disabled" },
+         { "yes", "enabled" },
+         { NULL, NULL },
+      },
+      "no"
+   },
+   {
+      "mgba_solar_sensor_level",
+      MGBA_SOLAR_SENSOR_LEVEL_LABEL_VAL,
+      NULL,
+      MGBA_SOLAR_SENSOR_LEVEL_INFO_0_VAL,
+      NULL,
+      "input",
+      {
+         { "sensor", OPTION_VAL_SENSOR_VAL },
+         { "0",      NULL },
+         { "1",      NULL },
+         { "2",      NULL },
+         { "3",      NULL },
+         { "4",      NULL },
+         { "5",      NULL },
+         { "6",      NULL },
+         { "7",      NULL },
+         { "8",      NULL },
+         { "9",      NULL },
+         { "10",     NULL },
+         { NULL,     NULL },
+      },
+      "0"
+   },
+   {
+      "mgba_force_gbp",
+      MGBA_FORCE_GBP_LABEL_VAL,
+      NULL,
+      MGBA_FORCE_GBP_INFO_0_VAL,
+      NULL,
+      "input",
+      {
+         { "OFF", "disabled" },
+         { "ON",  "enabled" },
+         { NULL, NULL },
+      },
+      "OFF"
+   },
+   {
+      "mgba_idle_optimization",
+      MGBA_IDLE_OPTIMIZATION_LABEL_VAL,
+      NULL,
+      MGBA_IDLE_OPTIMIZATION_INFO_0_VAL,
+      NULL,
+      "performance",
+      {
+         { "Remove Known",      OPTION_VAL_REMOVE_KNOWN_VAL },
+         { "Detect and Remove", OPTION_VAL_DETECT_AND_REMOVE_VAL },
+         { "Don't Remove",      OPTION_VAL_DON_T_REMOVE_VAL },
+         { NULL, NULL },
+      },
+      "Remove Known"
+   },
+   {
+      "mgba_frameskip",
+      MGBA_FRAMESKIP_LABEL_VAL,
+      NULL,
+      MGBA_FRAMESKIP_INFO_0_VAL,
+      NULL,
+      "performance",
+      {
+         { "disabled",       NULL },
+         { "auto",           OPTION_VAL_AUTO_VAL },
+         { "auto_threshold", OPTION_VAL_AUTO_THRESHOLD_VAL },
+         { "fixed_interval", OPTION_VAL_FIXED_INTERVAL_VAL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "mgba_frameskip_threshold",
+      MGBA_FRAMESKIP_THRESHOLD_LABEL_VAL,
+      NULL,
+      MGBA_FRAMESKIP_THRESHOLD_INFO_0_VAL,
+      NULL,
+      "performance",
+      {
+         { "15", NULL },
+         { "18", NULL },
+         { "21", NULL },
+         { "24", NULL },
+         { "27", NULL },
+         { "30", NULL },
+         { "33", NULL },
+         { "36", NULL },
+         { "39", NULL },
+         { "42", NULL },
+         { "45", NULL },
+         { "48", NULL },
+         { "51", NULL },
+         { "54", NULL },
+         { "57", NULL },
+         { "60", NULL },
+         { NULL, NULL },
+      },
+      "33"
+   },
+   {
+      "mgba_frameskip_interval",
+      MGBA_FRAMESKIP_INTERVAL_LABEL_VAL,
+      NULL,
+      MGBA_FRAMESKIP_INTERVAL_INFO_0_VAL,
+      NULL,
+      "performance",
+      {
+         { "0",  NULL },
+         { "1",  NULL },
+         { "2",  NULL },
+         { "3",  NULL },
+         { "4",  NULL },
+         { "5",  NULL },
+         { "6",  NULL },
+         { "7",  NULL },
+         { "8",  NULL },
+         { "9",  NULL },
+         { "10", NULL },
+         { NULL, NULL },
+      },
+      "0"
+   },
+   { NULL, NULL, NULL, NULL, NULL, NULL, {{0}}, NULL },
+};
+struct retro_core_options_v2 options_val = {
+   option_cats_val,
+   option_defs_val
+};
+
 /* RETRO_LANGUAGE_VN */
 
 #define CATEGORY_SYSTEM_LABEL_VN "Hệ thống"
@@ -15690,6 +16520,7 @@ struct retro_core_options_v2 options_uk = {
 #define OPTION_VAL_GRAYSCALE_VN NULL
 #define MGBA_GB_COLORS_PRESET_LABEL_VN NULL
 #define MGBA_GB_COLORS_PRESET_INFO_0_VN NULL
+#define OPTION_VAL_0_VN NULL
 #define OPTION_VAL_1_VN NULL
 #define OPTION_VAL_2_VN NULL
 #define OPTION_VAL_3_VN NULL
@@ -15700,7 +16531,7 @@ struct retro_core_options_v2 options_uk = {
 #define OPTION_VAL_AUTO_VN "Tự động"
 #define MGBA_INTERFRAME_BLENDING_LABEL_VN NULL
 #define MGBA_INTERFRAME_BLENDING_INFO_0_VN NULL
-#define OPTION_VAL_MIX_VN NULL
+#define OPTION_VAL_MIX_VN "Đơn giản"
 #define OPTION_VAL_MIX_SMART_VN NULL
 #define OPTION_VAL_LCD_GHOSTING_VN NULL
 #define OPTION_VAL_LCD_GHOSTING_FAST_VN NULL
@@ -15731,8 +16562,6 @@ struct retro_core_options_v2 options_uk = {
 #define OPTION_VAL_95_VN NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_LABEL_VN NULL
 #define MGBA_ALLOW_OPPOSING_DIRECTIONS_INFO_0_VN NULL
-#define OPTION_VAL_NO_VN NULL
-#define OPTION_VAL_YES_VN NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_LABEL_VN NULL
 #define MGBA_SOLAR_SENSOR_LEVEL_INFO_0_VN NULL
 #define OPTION_VAL_SENSOR_VN NULL
@@ -15852,13 +16681,13 @@ struct retro_core_option_v2_definition option_defs_vn[] = {
       NULL,
       "video",
       {
-         { "0", "" },
+         { "0", OPTION_VAL_0_VN },
          { "1", OPTION_VAL_1_VN },
          { "2", OPTION_VAL_2_VN },
          { "3", OPTION_VAL_3_VN },
          { NULL, NULL },
       },
-      "ON"
+      "0"
    },
    {
       "mgba_sgb_borders",
@@ -15962,8 +16791,8 @@ struct retro_core_option_v2_definition option_defs_vn[] = {
       NULL,
       "input",
       {
-         { "no",  OPTION_VAL_NO_VN },
-         { "yes", OPTION_VAL_YES_VN },
+         { "no",  "disabled" },
+         { "yes", "enabled" },
          { NULL, NULL },
       },
       "no"

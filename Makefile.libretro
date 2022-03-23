@@ -61,8 +61,6 @@ else ifneq (,$(findstring armv,$(platform)))
 	ifeq (,$(findstring classic_,$(platform)))
 		override platform += unix
 	endif
-else ifneq (,$(findstring rpi3,$(platform)))
-	override platform += unix
 endif
 
 prefix := /usr
@@ -97,25 +95,20 @@ ifneq (,$(findstring unix,$(platform)))
       DEFINES += -std=c99 -D_GNU_SOURCE -DHAVE_LOCALE
    endif
 
-# Raspberry Pi 3
-else ifeq ($(platform), rpi3)
+# Raspberry Pi
+else ifneq (,$(findstring rpi,$(platform)))
    TARGET := $(TARGET_NAME)_libretro.so
    fpic := -fPIC
    SHARED := -shared -Wl,-version-script=link.T
-   CFLAGS += -marm -mcpu=cortex-a53 -mfloat-abi=hard
-   CFLAGS += -fomit-frame-pointer
    DEFINES += -std=c99 -D_GNU_SOURCE -DHAVE_LOCALE
+   LDFLAGS += -flto 
    HAVE_VFS_FD = 0
-
-# Raspberry Pi 4 in 64bit mode
-else ifeq ($(platform), rpi4_64)
-   TARGET := $(TARGET_NAME)_libretro.so
-   fpic := -fPIC
-   SHARED := -shared -Wl,-version-script=link.T
-   CFLAGS += -march=armv8-a+crc+simd -mtune=cortex-a72
-   CFLAGS += -fomit-frame-pointer
-   DEFINES += -std=c99 -D_GNU_SOURCE -DHAVE_LOCALE
-   HAVE_VFS_FD = 0
+   CFLAGS += -fomit-frame-pointer -ftree-vectorize -flto
+   ifneq (,$(findstring rpi3,$(platform)))
+      CFLAGS += -marm -mcpu=cortex-a53 -mfloat-abi=hard
+   else ifneq (,$(findstring rpi4_64,$(platform)))
+      CFLAGS += -march=armv8-a+crc+simd -mtune=cortex-a72
+   endif
 
 # Go-Advance 
 else ifeq ($(platform), goadvance)
@@ -298,7 +291,7 @@ else ifeq ($(platform), psp1)
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = psp-gcc$(EXE_EXT)
    AR = psp-ar$(EXE_EXT)
-   PLATFORM_DEFINES := -DPSP -DCC_RESAMPLER
+   PLATFORM_DEFINES := -DPSP -DCC_RESAMPLER -DHAVE_STRTOF_L
    CFLAGS += -G0 -I$(shell psp-config --pspsdk-path)/include
    STATIC_LINKING = 1
    DEFINES += -std=c99
