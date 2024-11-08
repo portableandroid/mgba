@@ -287,7 +287,7 @@ ATTRIBUTE_NOINLINE static void _neutralS(struct ARMCore* cpu, int32_t d) {
 		SHIFTER(cpu, opcode); \
 		int rd = (opcode >> 12) & 0xF; \
 		int rn = (opcode >> 16) & 0xF; \
-		int32_t n = cpu->gprs[rn]; \
+		int32_t n ATTRIBUTE_UNUSED = cpu->gprs[rn]; \
 		if (UNLIKELY(rn == ARM_PC && (opcode & 0x02000010) == 0x00000010)) { \
 			n += WORD_SIZE_ARM; \
 		} \
@@ -358,7 +358,7 @@ ATTRIBUTE_NOINLINE static void _neutralS(struct ARMCore* cpu, int32_t d) {
 		uint32_t address; \
 		int rn = (opcode >> 16) & 0xF; \
 		int rd = (opcode >> 12) & 0xF; \
-		int32_t d = cpu->gprs[rd]; \
+		int32_t d ATTRIBUTE_UNUSED = cpu->gprs[rd]; \
 		if (UNLIKELY(rd == ARM_PC)) { \
 			d += WORD_SIZE_ARM; \
 		} \
@@ -663,7 +663,9 @@ DEFINE_INSTRUCTION_ARM(MRC, ARM_STUB)
 
 // Begin miscellaneous definitions
 
-DEFINE_INSTRUCTION_ARM(BKPT, cpu->irqh.bkpt32(cpu, ((opcode >> 4) & 0xFFF0) | (opcode & 0xF))); // Not strictly in ARMv4T, but here for convenience
+DEFINE_INSTRUCTION_ARM(BKPT,
+	cpu->irqh.bkpt32(cpu, ((opcode >> 4) & 0xFFF0) | (opcode & 0xF));
+	currentCycles = 0;); // Not strictly in ARMv4T, but here for convenience
 DEFINE_INSTRUCTION_ARM(ILL, ARM_ILL) // Illegal opcode
 
 DEFINE_INSTRUCTION_ARM(MSR,

@@ -56,6 +56,7 @@ static vita2d_texture* screenshot;
 static Thread audioThread;
 static bool interframeBlending = false;
 static bool sgbCrop = false;
+static bool blurry = false;
 
 static struct mSceRotationSource {
 	struct mRotationSource d;
@@ -87,7 +88,7 @@ static vita2d_texture* backdrop = 0;
 #define PSP2_AUDIO_BUFFER_SIZE (PSP2_SAMPLES * 16)
 
 static struct mPSP2AudioContext {
-	struct GBAStereoSample buffer[PSP2_AUDIO_BUFFER_SIZE];
+	struct mStereoSample buffer[PSP2_AUDIO_BUFFER_SIZE];
 	size_t writeOffset;
 	size_t readOffset;
 	size_t samples;
@@ -128,7 +129,7 @@ static THREAD_ENTRY _audioThread(void* context) {
 		sceAudioOutOutput(audioPort, buffer);
 	}
 	sceAudioOutReleasePort(audioPort);
-	return 0;
+	THREAD_EXIT(0);
 }
 
 static void _sampleRotation(struct mRotationSource* source) {
@@ -254,7 +255,7 @@ static void _postAudioBuffer(struct mAVStream* stream, blip_t* left, blip_t* rig
 		}
 		ConditionWait(&audioContext.cond, &audioContext.mutex);
 	}
-	struct GBAStereoSample* samples = &audioContext.buffer[audioContext.writeOffset];
+	struct mStereoSample* samples = &audioContext.buffer[audioContext.writeOffset];
 	blip_read_samples(left, &samples[0].left, PSP2_SAMPLES, true);
 	blip_read_samples(right, &samples[0].right, PSP2_SAMPLES, true);
 	audioContext.samples += PSP2_SAMPLES;
@@ -322,7 +323,7 @@ void mPSP2Setup(struct mGUIRunner* runner) {
 	mInputBindAxis(&runner->core->inputMap, PSP2_INPUT, 1, &desc);
 
 	unsigned width, height;
-	runner->core->desiredVideoDimensions(runner->core, &width, &height);
+	runner->core->baseVideoSize(runner->core, &width, &height);
 	tex[0] = vita2d_create_empty_texture_format(256, toPow2(height), SCE_GXM_TEXTURE_FORMAT_X8U8U8U8_1BGR);
 	tex[1] = vita2d_create_empty_texture_format(256, toPow2(height), SCE_GXM_TEXTURE_FORMAT_X8U8U8U8_1BGR);
 	currentTex = 0;
@@ -368,10 +369,8 @@ void mPSP2Setup(struct mGUIRunner* runner) {
 	if (mCoreConfigGetUIntValue(&runner->config, "camera", &mode)) {
 		camera.cam = mode;
 	}
-	int fakeBool;
-	if (mCoreConfigGetIntValue(&runner->config, "sgb.borderCrop", &fakeBool)) {
-		sgbCrop = fakeBool;
-	}
+	mCoreConfigGetBoolValue(&runner->config, "sgb.borderCrop", &sgbCrop);
+	mCoreConfigGetBoolValue(&runner->config, "filtering", &blurry);
 }
 
 void mPSP2LoadROM(struct mGUIRunner* runner) {
@@ -400,10 +399,7 @@ void mPSP2LoadROM(struct mGUIRunner* runner) {
 		break;
 	}
 
-	int fakeBool;
-	if (mCoreConfigGetIntValue(&runner->config, "interframeBlending", &fakeBool)) {
-		interframeBlending = fakeBool;
-	}
+	mCoreConfigGetBoolValue(&runner->config, "interframeBlending", &interframeBlending);
 
 	// Backcompat: Old versions of mGBA use an older binding system that has different mappings for L/R
 	if (!sceKernelIsPSVitaTV()) {
@@ -479,14 +475,9 @@ void mPSP2Unpaused(struct mGUIRunner* runner) {
 		}
 	}
 
-	int fakeBool;
-	if (mCoreConfigGetIntValue(&runner->config, "interframeBlending", &fakeBool)) {
-		interframeBlending = fakeBool;
-	}
-
-	if (mCoreConfigGetIntValue(&runner->config, "sgb.borderCrop", &fakeBool)) {
-		sgbCrop = fakeBool;
-	}
+	mCoreConfigGetBoolValue(&runner->config, "interframeBlending", &interframeBlending);
+	mCoreConfigGetBoolValue(&runner->config, "sgb.borderCrop", &sgbCrop);
+	mCoreConfigGetBoolValue(&runner->config, "filtering", &blurry);
 }
 
 void mPSP2Teardown(struct mGUIRunner* runner) {
@@ -577,6 +568,21 @@ void _drawTex(vita2d_texture* t, unsigned width, unsigned height, bool faded, bo
 		scaley = 544.0f / height;
 		break;
 	}
+	vita2d_texture_set_filters(t, SCE_GXM_TEXTURE_FILTER_LINEAR,
+	                           blurry ? SCE_GXM_TEXTURE_FILTER_LINEAR : SCE_GXM_TEXTURE_FILTER_POINT);
+	if (blurry) {
+		// Needed to avoid bleed from off-screen portion of texture
+		unsigned i;
+		uint32_t* texpixels = vita2d_texture_get_datap(t);
+		if (width < 256) {
+			for (i = 0; i < height; ++i) {
+				texpixels[i * 256 + width] = texpixels[i * 256 + width - 1];
+			}
+		}
+		if (height < vita2d_texture_get_height(t)) {
+			memcpy(&texpixels[height * 256], &texpixels[(height - 1) * 256], 1024);
+		}
+	}
 	vita2d_draw_texture_tint_part_scale(t,
 	                                    (960.0f - w) / 2.0f, (544.0f - h) / 2.0f,
 	                                    0, 0, width, height,
@@ -608,7 +614,7 @@ void mPSP2Swap(struct mGUIRunner* runner) {
 
 void mPSP2Draw(struct mGUIRunner* runner, bool faded) {
 	unsigned width, height;
-	runner->core->desiredVideoDimensions(runner->core, &width, &height);
+	runner->core->currentVideoSize(runner->core, &width, &height);
 	if (interframeBlending) {
 		_drawTex(tex[!currentTex], width, height, faded, false);
 	}

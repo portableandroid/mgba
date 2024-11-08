@@ -6,6 +6,7 @@
 #include <mgba-util/platform/psp2/sce-vfs.h>
 
 #include <psp2/io/dirent.h>
+#include <psp2/io/stat.h>
 
 #include <mgba-util/vfs.h>
 #include <mgba-util/memory.h>
@@ -112,6 +113,9 @@ ssize_t _vfsceWrite(struct VFile* vf, const void* buffer, size_t size) {
 static void* _vfsceMap(struct VFile* vf, size_t size, int flags) {
 	struct VFileSce* vfsce = (struct VFileSce*) vf;
 	UNUSED(flags);
+	if (!size) {
+		return NULL;
+	}
 	void* buffer = anonymousMemoryMap(size);
 	if (buffer) {
 		SceOff cur = sceIoLseek(vfsce->fd, 0, SEEK_CUR);
@@ -149,11 +153,10 @@ ssize_t _vfsceSize(struct VFile* vf) {
 bool _vfsceSync(struct VFile* vf, void* buffer, size_t size) {
 	struct VFileSce* vfsce = (struct VFileSce*) vf;
 	if (buffer && size) {
-		SceOff cur = sceIoLseek(vfsce->fd, 0, SEEK_CUR);
-		sceIoLseek(vfsce->fd, 0, SEEK_SET);
-		int res = sceIoWrite(vfsce->fd, buffer, size);
-		sceIoLseek(vfsce->fd, cur, SEEK_SET);
-		return res == size;
+		int res = sceIoPwrite(vfsce->fd, buffer, size, 0);
+		if (res < 0 || (size_t) res != size) {
+			return false;
+		}
 	}
 	return sceIoSyncByFd(vfsce->fd, 0) >= 0;
 }
@@ -280,7 +283,10 @@ struct VDirSceDevList {
 static const char* _devs[] = {
 	"ux0:",
 	"ur0:",
-	"uma0:"
+	"uma0:",
+	"imc0:",
+	"xmc0:",
+	NULL
 };
 
 struct VDir* VDeviceList() {
@@ -318,7 +324,7 @@ static void _vdlsceRewind(struct VDir* vd) {
 
 static struct VDirEntry* _vdlsceListNext(struct VDir* vd) {
 	struct VDirSceDevList* vdl = (struct VDirSceDevList*) vd;
-	while (vdl->vde.index < 3) {
+	while (vdl->vde.index < 0 || _devs[vdl->vde.index]) {
 		++vdl->vde.index;
 		vdl->vde.name = _devs[vdl->vde.index];
 		SceUID dir = sceIoDopen(vdl->vde.name);

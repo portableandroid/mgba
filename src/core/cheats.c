@@ -489,8 +489,10 @@ bool mCheatParseEZFChtFile(struct mCheatDevice* device, struct VFile* vf) {
 				return false;
 			}
 			char* name = gbkToUtf8(&cheat[1], end - cheat - 1);
-			strncpy(cheatName, name, sizeof(cheatName) - 1);
-			free(name);
+			if (name) {
+				strncpy(cheatName, name, sizeof(cheatName) - 1);
+				free(name);
+			}
 			cheatNameLength = strlen(cheatName);
 			continue;
 		}
@@ -501,7 +503,10 @@ bool mCheatParseEZFChtFile(struct mCheatDevice* device, struct VFile* vf) {
 		}
 		if (strncmp(cheat, "ON", eq - cheat) != 0) {
 			char* subname = gbkToUtf8(cheat, eq - cheat);
-			snprintf(&cheatName[cheatNameLength], sizeof(cheatName) - cheatNameLength - 1, ": %s", subname);
+			if (subname) {
+				snprintf(&cheatName[cheatNameLength], sizeof(cheatName) - cheatNameLength - 1, ": %s", subname);
+				free(subname);
+			}
 		}
 		set = device->createSet(device, cheatName);
 		set->enabled = false;
@@ -737,6 +742,12 @@ void mCheatRefresh(struct mCheatDevice* device, struct mCheatSet* cheats) {
 				break;
 			case CHEAT_IF_BUTTON:
 				condition = device->buttonDown;
+				conditionRemaining = cheat->repeat;
+				negativeConditionRemaining = cheat->negativeRepeat;
+				operationsRemaining = 1;
+				break;
+			case CHEAT_NEVER:
+				condition = false;
 				conditionRemaining = cheat->repeat;
 				negativeConditionRemaining = cheat->negativeRepeat;
 				operationsRemaining = 1;

@@ -5,6 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include <mgba/internal/gb/gb.h>
 
+#include <mgba/internal/defines.h>
 #include <mgba/internal/gb/io.h>
 #include <mgba/internal/gb/mbc.h>
 #include <mgba/internal/sm83/sm83.h>
@@ -17,14 +18,14 @@
 #include <mgba-util/patch.h>
 #include <mgba-util/vfs.h>
 
-#define CLEANUP_THRESHOLD 15
-
 const uint32_t CGB_SM83_FREQUENCY = 0x800000;
 const uint32_t SGB_SM83_FREQUENCY = 0x418B1E;
 
 const uint32_t GB_COMPONENT_MAGIC = 0x400000;
 
-static const uint8_t _knownHeader[4] = { 0xCE, 0xED, 0x66, 0x66};
+static const uint8_t _knownHeader[4] = {0xCE, 0xED, 0x66, 0x66};
+static const uint8_t _knownHeaderSachen[4] = {0x7C, 0xE7, 0xC0, 0x00};
+static const uint8_t _registeredTrademark[] = {0x3C, 0x42, 0xB9, 0xA5, 0xB9, 0xA5, 0x42, 0x3C};
 
 #define DMG0_BIOS_CHECKSUM 0xC2F5CC97
 #define DMG_BIOS_CHECKSUM 0x59C8598E
@@ -32,6 +33,7 @@ static const uint8_t _knownHeader[4] = { 0xCE, 0xED, 0x66, 0x66};
 #define SGB_BIOS_CHECKSUM 0xEC8A83B9
 #define SGB2_BIOS_CHECKSUM 0X53D0DD63
 #define CGB_BIOS_CHECKSUM 0x41884E46
+#define CGB0_BIOS_CHECKSUM 0xE8EF5318
 #define AGB_BIOS_CHECKSUM 0xFFD6B0F1
 
 mLOG_DEFINE_CATEGORY(GB, "GB", "gb");
@@ -83,6 +85,8 @@ static void GBInit(void* cpu, struct mCPUComponent* component) {
 	gb->pristineRomSize = 0;
 	gb->yankedRomSize = 0;
 
+	memset(&gb->gbx, 0, sizeof(gb->gbx));
+
 	mCoreCallbacksListInit(&gb->coreCallbacks, 0);
 	gb->stream = NULL;
 
@@ -100,13 +104,79 @@ static void GBDeinit(struct mCPUComponent* component) {
 	mTimingDeinit(&gb->timing);
 }
 
+bool GBLoadGBX(struct GBXMetadata* metadata, struct VFile* vf) {
+	uint8_t footer[16];
+	if (vf->seek(vf, -sizeof(footer), SEEK_END) < 0) {
+		return false;
+	}
+	if (vf->read(vf, footer, sizeof(footer)) < (ssize_t) sizeof(footer)) {
+		return false;
+	}
+	int32_t gbxSize = 0;
+	uint32_t vers;
+	LOAD_32BE(gbxSize, 0, footer);
+	LOAD_32BE(vers, 4, footer);
+	if (memcmp(&footer[12], "GBX!", 4) != 0 || gbxSize != 0x40 || vers != 1) {
+		return false;
+	}
+	if (vf->seek(vf, -gbxSize, SEEK_END) < 0) {
+		return false;
+	}
+	if (vf->read(vf, footer, sizeof(footer)) != (ssize_t) sizeof(footer)) {
+		return false;
+	}
+	memset(metadata, 0, sizeof(*metadata));
+	metadata->mbc = GBMBCFromGBX(footer);
+
+	if (footer[4] == 1) {
+		metadata->battery = true;
+	}
+	if (footer[5] == 1) {
+		metadata->rumble = true;
+		if (metadata->mbc == GB_MBC5) {
+			metadata->mbc = GB_MBC5_RUMBLE;
+		}
+	}
+	if (footer[6] == 1) {
+		metadata->timer = true;
+		if (metadata->mbc == GB_MBC3) {
+			metadata->mbc = GB_MBC3_RTC;
+		}
+	}
+	LOAD_32BE(metadata->romSize, 8, footer);
+	LOAD_32BE(metadata->ramSize, 12, footer);
+	vf->read(vf, &metadata->mapperVars, 0x20);
+
+	// There's no dedicated mapper type for MBC1M so let's stash some data here
+	if (memcmp(footer, "MBC1", 4) == 0) {
+		metadata->mapperVars.u8[0] = 5;
+	} else if (memcmp(footer, "MB1M", 4) == 0) {
+		metadata->mapperVars.u8[0] = 4;		
+	}
+	return true;
+}
+
 bool GBLoadROM(struct GB* gb, struct VFile* vf) {
 	if (!vf) {
 		return false;
 	}
 	GBUnloadROM(gb);
+
+	if (!GBLoadGBX(&gb->gbx, vf)) {
+		// GBX handles the pristine size itself, but other formats don't
+		gb->pristineRomSize = vf->size(vf);
+	} else {
+		uint32_t fileSize = vf->size(vf);
+		if (gb->gbx.romSize <= fileSize - 0x40) {
+			gb->pristineRomSize = gb->gbx.romSize;
+		} else {
+			// TODO: Should we make a temporary buffer?
+			mLOG(GB, WARN, "GBX file size %d is larger than real file size %d", gb->gbx.romSize, fileSize - 0x40);
+			gb->pristineRomSize = fileSize - 0x40;
+		}
+	}
+
 	gb->romVf = vf;
-	gb->pristineRomSize = vf->size(vf);
 	vf->seek(vf, 0, SEEK_SET);
 	gb->isPristine = true;
 	gb->memory.rom = vf->map(vf, gb->pristineRomSize, MAP_READ);
@@ -116,11 +186,13 @@ bool GBLoadROM(struct GB* gb, struct VFile* vf) {
 	gb->yankedRomSize = 0;
 	gb->memory.romSize = gb->pristineRomSize;
 	gb->romCrc32 = doCrc32(gb->memory.rom, gb->memory.romSize);
-	memset(&gb->memory.mbcState, 0, sizeof(gb->memory.mbcState));
 	GBMBCReset(gb);
 
 	if (gb->cpu) {
 		struct SM83Core* cpu = gb->cpu;
+		if (!gb->memory.romBase) {
+			GBMBCSwitchBank0(gb, 0);
+		}
 		cpu->memory.setActiveRegion(cpu, cpu->pc);
 	}
 
@@ -144,8 +216,14 @@ void GBYankROM(struct GB* gb) {
 static void GBSramDeinit(struct GB* gb) {
 	if (gb->sramVf) {
 		gb->sramVf->unmap(gb->sramVf, gb->memory.sram, gb->sramSize);
-		if (gb->memory.mbcType == GB_MBC3_RTC && gb->sramVf == gb->sramRealVf) {
-			GBMBCRTCWrite(gb);
+		if (gb->sramVf == gb->sramRealVf) {
+			if (gb->memory.mbcType == GB_MBC3_RTC) {
+				GBMBCRTCWrite(gb);
+			} else if (gb->memory.mbcType == GB_HuC3) {
+				GBMBCHuC3Write(gb);
+			} else if (gb->memory.mbcType == GB_TAMA5) {
+				GBMBCTAMA5Write(gb);
+			}
 		}
 		gb->sramVf = NULL;
 	} else if (gb->memory.sram) {
@@ -157,6 +235,9 @@ static void GBSramDeinit(struct GB* gb) {
 bool GBLoadSave(struct GB* gb, struct VFile* vf) {
 	GBSramDeinit(gb);
 	gb->sramVf = vf;
+	if (gb->sramRealVf && gb->sramRealVf != vf) {
+		gb->sramRealVf->close(gb->sramRealVf);
+	}
 	gb->sramRealVf = vf;
 	if (gb->sramSize) {
 		GBResizeSram(gb, gb->sramSize);
@@ -164,6 +245,10 @@ bool GBLoadSave(struct GB* gb, struct VFile* vf) {
 
 		if (gb->memory.mbcType == GB_MBC3_RTC) {
 			GBMBCRTCRead(gb);
+		} else if (gb->memory.mbcType == GB_HuC3) {
+			GBMBCHuC3Read(gb);
+		} else if (gb->memory.mbcType == GB_TAMA5) {
+			GBMBCTAMA5Read(gb);
 		}
 	}
 	return vf;
@@ -175,9 +260,13 @@ void GBResizeSram(struct GB* gb, size_t size) {
 	}
 	struct VFile* vf = gb->sramVf;
 	if (vf) {
+		// We have a vf
+		ssize_t vfSize = vf->size(vf);
 		if (vf == gb->sramRealVf) {
-			ssize_t vfSize = vf->size(vf);
+			// This is the real save file, not a masked one
 			if (vfSize >= 0 && (size_t) vfSize < size) {
+				// We need to grow the file
+				// Make sure to copy the footer data, if any
 				uint8_t extdataBuffer[0x100];
 				if (vfSize & 0xFF) {
 					vf->seek(vf, -(vfSize & 0xFF), SEEK_END);
@@ -185,30 +274,59 @@ void GBResizeSram(struct GB* gb, size_t size) {
 				}
 				if (gb->memory.sram) {
 					vf->unmap(vf, gb->memory.sram, gb->sramSize);
+					gb->memory.sram = NULL;
 				}
 				vf->truncate(vf, size + (vfSize & 0xFF));
 				if (vfSize & 0xFF) {
 					vf->seek(vf, size, SEEK_SET);
 					vf->write(vf, extdataBuffer, vfSize & 0xFF);
 				}
-				gb->memory.sram = vf->map(vf, size, MAP_WRITE);
-				memset(&gb->memory.sram[vfSize], 0xFF, size - vfSize);
+				if (size) {
+					gb->memory.sram = vf->map(vf, size, MAP_WRITE);
+					memset(&gb->memory.sram[vfSize], 0xFF, size - vfSize);
+				}
 			} else if (size > gb->sramSize || !gb->memory.sram) {
+				// We aren't growing the file, but we are changing our mapping of it
 				if (gb->memory.sram) {
 					vf->unmap(vf, gb->memory.sram, gb->sramSize);
+					gb->memory.sram = NULL;
 				}
-				gb->memory.sram = vf->map(vf, size, MAP_WRITE);
+				if (size) {
+					gb->memory.sram = vf->map(vf, size, MAP_WRITE);
+				}
 			}
 		} else {
+			// This is a masked save file
 			if (gb->memory.sram) {
 				vf->unmap(vf, gb->memory.sram, gb->sramSize);
 			}
-			gb->memory.sram = vf->map(vf, size, MAP_READ);
+			if ((vfSize <= 0 && size) || (size_t) vfSize < size) {
+				// The loaded mask file is too small. Since these can be read-only,
+				// we need to make a new one of the right size
+				if (vfSize < 0) {
+					vfSize = 0;
+				}
+				gb->sramVf = VFileMemChunk(NULL, size);
+				uint8_t* sram = gb->sramVf->map(gb->sramVf, size, MAP_WRITE);
+				if (vfSize > 0) {
+					vf->seek(vf, 0, SEEK_SET);
+					vf->read(vf, sram, vfSize);
+				}
+				memset(&sram[vfSize], 0xFF, size - vfSize);
+				gb->sramVf->unmap(gb->sramVf, sram, size);
+				vf->close(vf);
+				vf = gb->sramVf;
+			}
+			if (size) {
+				gb->memory.sram = vf->map(vf, size, MAP_READ);
+			}
 		}
-		if (gb->memory.sram == (void*) -1) {
+		if (!size || gb->memory.sram == (void*) -1) {
 			gb->memory.sram = NULL;
 		}
 	} else if (size) {
+		// There's no vf, so let's make it only memory-backed
+		// TODO: Investigate just using a VFileMemChunk instead of this hybrid approach
 		uint8_t* newSram = anonymousMemoryMap(size);
 		if (gb->memory.sram) {
 			if (size > gb->sramSize) {
@@ -233,24 +351,23 @@ void GBSramClean(struct GB* gb, uint32_t frameCount) {
 	if (!gb->sramVf) {
 		return;
 	}
-	if (gb->sramDirty & GB_SRAM_DIRT_NEW) {
-		gb->sramDirtAge = frameCount;
-		gb->sramDirty &= ~GB_SRAM_DIRT_NEW;
-		if (!(gb->sramDirty & GB_SRAM_DIRT_SEEN)) {
-			gb->sramDirty |= GB_SRAM_DIRT_SEEN;
-		}
-	} else if ((gb->sramDirty & GB_SRAM_DIRT_SEEN) && frameCount - gb->sramDirtAge > CLEANUP_THRESHOLD) {
+	if (mSavedataClean(&gb->sramDirty, &gb->sramDirtAge, frameCount)) {
 		if (gb->sramMaskWriteback) {
 			GBSavedataUnmask(gb);
 		}
 		if (gb->memory.mbcType == GB_MBC3_RTC) {
 			GBMBCRTCWrite(gb);
+		} else if (gb->memory.mbcType == GB_HuC3) {
+			GBMBCHuC3Write(gb);
+		} else if (gb->memory.mbcType == GB_TAMA5) {
+			GBMBCTAMA5Write(gb);
 		}
-		gb->sramDirty = 0;
-		if (gb->memory.sram && gb->sramVf->sync(gb->sramVf, gb->memory.sram, gb->sramSize)) {
-			mLOG(GB_MEM, INFO, "Savedata synced");
-		} else {
-			mLOG(GB_MEM, INFO, "Savedata failed to sync!");
+		if (gb->sramVf == gb->sramRealVf) {
+			if (gb->memory.sram && gb->sramVf->sync(gb->sramVf, gb->memory.sram, gb->sramSize)) {
+				mLOG(GB_MEM, INFO, "Savedata synced");
+			} else {
+				mLOG(GB_MEM, INFO, "Savedata failed to sync!");
+			}
 		}
 
 		size_t c;
@@ -271,7 +388,7 @@ void GBSavedataMask(struct GB* gb, struct VFile* vf, bool writeback) {
 	}
 	gb->sramVf = vf;
 	gb->sramMaskWriteback = writeback;
-	gb->memory.sram = vf->map(vf, gb->sramSize, MAP_READ);
+	GBResizeSram(gb, gb->sramSize);
 	GBMBCSwitchSramBank(gb, gb->memory.sramCurrentBank);
 }
 
@@ -307,7 +424,9 @@ void GBUnloadROM(struct GB* gb) {
 
 	if (gb->romVf) {
 #ifndef FIXED_ROM_BUFFER
-		gb->romVf->unmap(gb->romVf, gb->memory.rom, gb->pristineRomSize);
+		if (gb->isPristine && gb->memory.rom) {
+			gb->romVf->unmap(gb->romVf, gb->memory.rom, gb->pristineRomSize);
+		}
 #endif
 		gb->romVf->close(gb->romVf);
 		gb->romVf = NULL;
@@ -316,7 +435,9 @@ void GBUnloadROM(struct GB* gb) {
 	gb->memory.mbcType = GB_MBC_AUTODETECT;
 	gb->isPristine = false;
 
-	gb->sramMaskWriteback = false;
+	if (!gb->sramDirty) {
+		gb->sramMaskWriteback = false;
+	}
 	GBSavedataUnmask(gb);
 	GBSramDeinit(gb);
 	if (gb->sramRealVf) {
@@ -353,6 +474,9 @@ void GBApplyPatch(struct GB* gb, struct Patch* patch) {
 	if (patchedSize > GB_SIZE_CART_MAX) {
 		patchedSize = GB_SIZE_CART_MAX;
 	}
+
+	const struct GBCartridge* cart = (const struct GBCartridge*) &gb->memory.rom[0x100];
+	uint8_t type = cart->type;
 	void* newRom = anonymousMemoryMap(GB_SIZE_CART_MAX);
 	if (!patch->applyPatch(patch, gb->memory.rom, gb->pristineRomSize, newRom, patchedSize)) {
 		mappedMemoryFree(newRom, GB_SIZE_CART_MAX);
@@ -371,6 +495,12 @@ void GBApplyPatch(struct GB* gb, struct Patch* patch) {
 	}
 	gb->memory.rom = newRom;
 	gb->memory.romSize = patchedSize;
+
+	cart = (const struct GBCartridge*) &gb->memory.rom[0x100];
+	if (cart->type != type) {
+		gb->memory.mbcType = GB_MBC_AUTODETECT;
+		GBMBCInit(gb);
+	}
 	gb->romCrc32 = doCrc32(gb->memory.rom, gb->memory.romSize);
 	gb->cpu->memory.setActiveRegion(gb->cpu, gb->cpu->pc);
 }
@@ -420,8 +550,26 @@ bool GBIsBIOS(struct VFile* vf) {
 	case SGB_BIOS_CHECKSUM:
 	case SGB2_BIOS_CHECKSUM:
 	case CGB_BIOS_CHECKSUM:
+	case CGB0_BIOS_CHECKSUM:
 	case AGB_BIOS_CHECKSUM:
 		return true;
+	default:
+		return false;
+	}
+}
+
+bool GBIsCompatibleBIOS(struct VFile* vf, enum GBModel model) {
+	switch (_GBBiosCRC32(vf)) {
+	case DMG_BIOS_CHECKSUM:
+	case DMG0_BIOS_CHECKSUM:
+	case MGB_BIOS_CHECKSUM:
+	case SGB_BIOS_CHECKSUM:
+	case SGB2_BIOS_CHECKSUM:
+		return model < GB_MODEL_CGB;
+	case CGB_BIOS_CHECKSUM:
+	case CGB0_BIOS_CHECKSUM:
+	case AGB_BIOS_CHECKSUM:
+		return model >= GB_MODEL_CGB;
 	default:
 		return false;
 	}
@@ -459,7 +607,7 @@ void GBReset(struct SM83Core* cpu) {
 	GBMemoryReset(gb);
 
 	if (gb->biosVf) {
-		if (!GBIsBIOS(gb->biosVf)) {
+		if (!GBIsCompatibleBIOS(gb->biosVf, gb->model)) {
 			gb->biosVf->close(gb->biosVf);
 			gb->biosVf = NULL;
 		} else {
@@ -475,16 +623,33 @@ void GBReset(struct SM83Core* cpu) {
 		}
 	}
 
+	switch (gb->model) {
+	case GB_MODEL_DMG:
+	case GB_MODEL_SGB:
+	case GB_MODEL_AUTODETECT: //Silence warnings
+		gb->audio.style = GB_AUDIO_DMG;
+		break;
+	case GB_MODEL_MGB:
+	case GB_MODEL_SGB2:
+		gb->audio.style = GB_AUDIO_MGB;
+		break;
+	case GB_MODEL_AGB:
+	case GB_MODEL_CGB:
+	case GB_MODEL_SCGB:
+		gb->audio.style = GB_AUDIO_CGB;
+		break;
+	}
+
 	GBVideoReset(&gb->video);
 	GBTimerReset(&gb->timer);
 	GBIOReset(gb);
+	GBAudioReset(&gb->audio);
 	if (!gb->biosVf && gb->memory.rom) {
 		GBSkipBIOS(gb);
 	} else {
 		mTimingSchedule(&gb->timing, &gb->timer.event, 0);
 	}
 
-	GBAudioReset(&gb->audio);
 	GBSIOReset(&gb->sio);
 
 	cpu->memory.setActiveRegion(cpu, cpu->pc);
@@ -575,6 +740,45 @@ void GBSkipBIOS(struct GB* gb) {
 		break;
 	}
 
+	unsigned i;
+	for (i = 0; i < sizeof(cart->logo); ++i) {
+		uint8_t byte = GBLoad8(cpu, 0x104 + i);
+
+		uint8_t output0 = 0;
+		uint8_t output1 = 0;
+
+		output0 |= (byte & 0x80) >> 0;
+		output0 |= (byte & 0x40) >> 1;
+		output0 |= (byte & 0x20) >> 2;
+		output0 |= (byte & 0x10) >> 3;
+		output0 |= output0 >> 1;
+
+		output1 |= (byte & 0x08) << 3;
+		output1 |= (byte & 0x04) << 2;
+		output1 |= (byte & 0x02) << 1;
+		output1 |= (byte & 0x01) << 0;
+		output1 |= output1 << 1;
+
+		GBPatch8(cpu, 0x8010 + i * 8, output0, NULL, 0);
+		GBPatch8(cpu, 0x8012 + i * 8, output0, NULL, 0);
+		GBPatch8(cpu, 0x8014 + i * 8, output1, NULL, 0);
+		GBPatch8(cpu, 0x8016 + i * 8, output1, NULL, 0);
+	}
+	for (i = 0; i < sizeof(_registeredTrademark); ++i) {
+		GBPatch8(cpu, 0x8190 + i * 2, _registeredTrademark[i], NULL, 0);
+	}
+	if (gb->model < GB_MODEL_CGB) {
+		for (i = 0; i < 12; ++i) {
+			GBPatch8(cpu, 0x9904 + i, i + 1, NULL, 0);
+			GBPatch8(cpu, 0x9924 + i, i + 13, NULL, 0);
+		}
+		GBPatch8(cpu, 0x9910, 0x19, NULL, 0);
+	}
+
+	if (gb->memory.mbcType == GB_UNL_SACHEN_MMC2) {
+		gb->memory.mbcState.sachen.locked = GB_SACHEN_UNLOCKED;
+	}
+
 	cpu->sp = 0xFFFE;
 	cpu->pc = 0x100;
 
@@ -587,6 +791,25 @@ void GBSkipBIOS(struct GB* gb) {
 		GBUnmapBIOS(gb);
 	}
 
+	GBIOWrite(gb, GB_REG_NR52, 0xF1);
+	GBIOWrite(gb, GB_REG_NR14, 0x3F);
+	GBIOWrite(gb, GB_REG_NR10, 0x80);
+	GBIOWrite(gb, GB_REG_NR11, 0xBF);
+	GBIOWrite(gb, GB_REG_NR12, 0xF3);
+	GBIOWrite(gb, GB_REG_NR13, 0xF3);
+	GBIOWrite(gb, GB_REG_NR24, 0x3F);
+	GBIOWrite(gb, GB_REG_NR21, 0x3F);
+	GBIOWrite(gb, GB_REG_NR22, 0x00);
+	GBIOWrite(gb, GB_REG_NR34, 0x3F);
+	GBIOWrite(gb, GB_REG_NR30, 0x7F);
+	GBIOWrite(gb, GB_REG_NR31, 0xFF);
+	GBIOWrite(gb, GB_REG_NR32, 0x9F);
+	GBIOWrite(gb, GB_REG_NR44, 0x3F);
+	GBIOWrite(gb, GB_REG_NR41, 0xFF);
+	GBIOWrite(gb, GB_REG_NR42, 0x00);
+	GBIOWrite(gb, GB_REG_NR43, 0x00);
+	GBIOWrite(gb, GB_REG_NR50, 0x77);
+	GBIOWrite(gb, GB_REG_NR51, 0xF3);
 	GBIOWrite(gb, GB_REG_LCDC, 0x91);
 	gb->memory.io[GB_REG_BANK] = 0x1;
 	GBVideoSkipBIOS(&gb->video);
@@ -599,7 +822,7 @@ void GBMapBIOS(struct GB* gb) {
 	if (gb->memory.rom) {
 		memcpy(&gb->memory.romBase[size], &gb->memory.rom[size], GB_SIZE_CART_BANK0 - size);
 		if (size > 0x100) {
-			memcpy(&gb->memory.romBase[0x100], &gb->memory.rom[0x100], sizeof(struct GBCartridge));
+			memcpy(&gb->memory.romBase[0x100], &gb->memory.rom[0x100], 0x100);
 		}
 	}
 }
@@ -639,6 +862,7 @@ void GBDetectModel(struct GB* gb) {
 			gb->model = GB_MODEL_SGB2;
 			break;
 		case CGB_BIOS_CHECKSUM:
+		case CGB0_BIOS_CHECKSUM:
 			gb->model = GB_MODEL_CGB;
 			break;
 		case AGB_BIOS_CHECKSUM:
@@ -658,23 +882,6 @@ void GBDetectModel(struct GB* gb) {
 		} else {
 			gb->model = GB_MODEL_DMG;
 		}
-	}
-
-	switch (gb->model) {
-	case GB_MODEL_DMG:
-	case GB_MODEL_SGB:
-	case GB_MODEL_AUTODETECT: //Silence warnings
-		gb->audio.style = GB_AUDIO_DMG;
-		break;
-	case GB_MODEL_MGB:
-	case GB_MODEL_SGB2:
-		gb->audio.style = GB_AUDIO_MGB;
-		break;
-	case GB_MODEL_AGB:
-	case GB_MODEL_CGB:
-	case GB_MODEL_SCGB:
-		gb->audio.style = GB_AUDIO_CGB;
-		break;
 	}
 }
 
@@ -712,39 +919,60 @@ void GBUpdateIRQs(struct GB* gb) {
 	SM83RaiseIRQ(gb->cpu);
 }
 
+static void _GBAdvanceCycles(struct GB* gb) {
+	struct SM83Core* cpu = gb->cpu;
+	int stateMask = (4 * (2 - gb->doubleSpeed)) - 1;
+	int stateOffset = ((cpu->nextEvent - cpu->cycles) & stateMask) >> !gb->doubleSpeed;
+	cpu->cycles = cpu->nextEvent;
+	cpu->executionState = (cpu->executionState + stateOffset) & 3;
+}
+
 void GBProcessEvents(struct SM83Core* cpu) {
 	struct GB* gb = (struct GB*) cpu->master;
-	do {
-		int32_t cycles = cpu->cycles;
-		int32_t nextEvent;
-
-		cpu->cycles = 0;
-		cpu->nextEvent = INT_MAX;
-
-		nextEvent = cycles;
+	bool wasHalted = cpu->halted;
+	while (true) {
 		do {
-#ifdef USE_DEBUGGERS
-			gb->timing.globalCycles += nextEvent;
-#endif
-			nextEvent = mTimingTick(&gb->timing, nextEvent);
-		} while (gb->cpuBlocked);
-		// This loop cannot early exit until the SM83 run loop properly handles mid-M-cycle-exits
-		cpu->nextEvent = nextEvent;
+			int32_t cycles = cpu->cycles;
+			int32_t nextEvent;
 
-		if (cpu->halted) {
-			cpu->cycles = cpu->nextEvent;
-			if (!gb->memory.ie || !gb->memory.ime) {
+			cpu->cycles = 0;
+			cpu->nextEvent = INT_MAX;
+
+			nextEvent = cycles;
+			do {
+#ifdef USE_DEBUGGERS
+				gb->timing.globalCycles += nextEvent;
+#endif
+				nextEvent = mTimingTick(&gb->timing, nextEvent);
+			} while (gb->cpuBlocked);
+			// This loop cannot early exit until the SM83 run loop properly handles mid-M-cycle-exits
+			cpu->nextEvent = nextEvent;
+
+			if (cpu->halted) {
+				_GBAdvanceCycles(gb);
+				if (!gb->memory.ie || !gb->memory.ime) {
+					break;
+				}
+			}
+			if (gb->earlyExit) {
 				break;
 			}
+		} while (cpu->cycles >= cpu->nextEvent);
+		if (gb->cpuBlocked) {
+			_GBAdvanceCycles(gb);
 		}
-		if (gb->earlyExit) {
+		if (!wasHalted || (cpu->executionState & 3) == SM83_CORE_FETCH) {
 			break;
 		}
-	} while (cpu->cycles >= cpu->nextEvent);
+		int nextFetch = (SM83_CORE_FETCH - cpu->executionState) * cpu->tMultiplier;
+		if (nextFetch < cpu->nextEvent) {
+			cpu->cycles += nextFetch;
+			cpu->executionState = SM83_CORE_FETCH;
+			break;
+		}
+		_GBAdvanceCycles(gb);
+	}
 	gb->earlyExit = false;
-	if (gb->cpuBlocked) {
-		cpu->cycles = cpu->nextEvent;
-}
 }
 
 void GBSetInterrupts(struct SM83Core* cpu, bool enable) {
@@ -796,7 +1024,8 @@ static void _enableInterrupts(struct mTiming* timing, void* user, uint32_t cycle
 void GBHalt(struct SM83Core* cpu) {
 	struct GB* gb = (struct GB*) cpu->master;
 	if (!(gb->memory.ie & gb->memory.io[GB_REG_IF] & 0x1F)) {
-		cpu->cycles = cpu->nextEvent;
+		_GBAdvanceCycles(gb);
+		cpu->executionState = (cpu->executionState - 1) & 3;
 		cpu->halted = true;
 	} else if (!gb->memory.ime) {
 		mLOG(GB, GAME_ERROR, "HALT bug");
@@ -846,16 +1075,45 @@ bool GBIsROM(struct VFile* vf) {
 	if (!vf) {
 		return false;
 	}
-	vf->seek(vf, 0x104, SEEK_SET);
-	uint8_t header[4];
+	vf->seek(vf, 0x100, SEEK_SET);
+	uint8_t header[0x100];
 
 	if (vf->read(vf, &header, sizeof(header)) < (ssize_t) sizeof(header)) {
 		return false;
 	}
-	if (memcmp(header, _knownHeader, sizeof(header))) {
+	if (memcmp(&header[4], _knownHeader, sizeof(_knownHeader)) == 0) {
+		return true;
+	}
+	if (memcmp(&header[4], _knownHeaderSachen, sizeof(_knownHeaderSachen)) == 0) {
+		// Sachen logo
+		return true;
+	}
+	if (header[0x04] == _knownHeader[0] && header[0x44] == _knownHeader[1] &&
+	    header[0x14] == _knownHeader[2] && header[0x54] == _knownHeader[3]) {
+		// Sachen MMC1 scrambled header
+		return true;
+	}
+	if (header[0x04] == _knownHeaderSachen[0] && header[0x44] == _knownHeaderSachen[1] &&
+	    header[0x14] == _knownHeaderSachen[2] && header[0x54] == _knownHeaderSachen[3]) {
+		// Sachen MMC2 scrambled header
+		return true;
+	}
+
+	uint8_t footer[16];
+	vf->seek(vf, -sizeof(footer), SEEK_END);
+	if (vf->read(vf, footer, sizeof(footer)) < (ssize_t) sizeof(footer)) {
 		return false;
 	}
-	return true;
+	uint32_t size;
+	uint32_t vers;
+	LOAD_32BE(size, 0, footer);
+	LOAD_32BE(vers, 4, footer);
+	if (memcmp(&footer[12], "GBX!", 4) == 0 && size == 0x40 && vers == 1) {
+		// GBX file
+		return true;
+	}
+
+	return false;
 }
 
 void GBGetGameTitle(const struct GB* gb, char* out) {

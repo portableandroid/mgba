@@ -14,6 +14,10 @@
 #include <mgba/core/version.h>
 #include <mgba/gba/interface.h>
 
+#ifdef BUILD_SDL
+#include "platform/sdl/sdl-events.h"
+#endif
+
 #include <QLibraryInfo>
 #include <QTranslator>
 
@@ -24,6 +28,7 @@
 #ifdef QT_STATIC
 #include <QtPlugin>
 #ifdef Q_OS_WIN
+Q_IMPORT_PLUGIN(QJpegPlugin);
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin);
 Q_IMPORT_PLUGIN(QWindowsVistaStylePlugin);
 #ifdef BUILD_QT_MULTIMEDIA
@@ -36,6 +41,9 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin);
 Q_IMPORT_PLUGIN(CoreAudioPlugin);
 Q_IMPORT_PLUGIN(AVFServicePlugin);
 #endif
+#elif defined(Q_OS_UNIX)
+Q_IMPORT_PLUGIN(QXcbIntegrationPlugin);
+Q_IMPORT_PLUGIN(QWaylandIntegrationPlugin);
 #endif
 #endif
 
@@ -66,22 +74,18 @@ int main(int argc, char* argv[]) {
 		QLocale::setDefault(locale);
 	}
 
-	mArguments args;
-	mGraphicsOpts graphicsOpts;
-	mSubParser subparser;
-	initParserForGraphics(&subparser, &graphicsOpts);
-	bool loaded = configController.parseArguments(&args, argc, argv, &subparser);
-	if (loaded) {
-		if (args.showHelp) {
-			usage(argv[0], subparser.usage);
-			freeArguments(&args);
+	if (configController.parseArguments(argc, argv)) {
+		if (configController.args()->showHelp) {
+			configController.usage(argv[0]);
 			return 0;
 		}
-		if (args.showVersion) {
+		if (configController.args()->showVersion) {
 			version(argv[0]);
-			freeArguments(&args);
 			return 0;
 		}
+	} else {
+		configController.usage(argv[0]);
+		return 1;
 	}
 
 	QApplication::setApplicationName(projectName);
@@ -100,6 +104,10 @@ int main(int argc, char* argv[]) {
 	QApplication::setWindowIcon(QIcon(":/res/mgba-256.png"));
 #endif
 
+#ifdef Q_OS_UNIX
+	QApplication::setDesktopFileName(QString("io.mgba.mGBA"));
+#endif
+
 	QTranslator qtTranslator;
 	qtTranslator.load(locale, "qt", "_", QLibraryInfo::location(QLibraryInfo::TranslationsPath));
 	application.installTranslator(&qtTranslator);
@@ -115,19 +123,8 @@ int main(int argc, char* argv[]) {
 	application.installTranslator(&langTranslator);
 
 	Window* w = application.newWindow();
-	if (loaded) {
-		w->argumentsPassed(&args);
-	} else {
-		w->loadConfig();
-	}
-	freeArguments(&args);
-
-	if (graphicsOpts.multiplier) {
-		w->resizeFrame(QSize(GBA_VIDEO_HORIZONTAL_PIXELS * graphicsOpts.multiplier, GBA_VIDEO_VERTICAL_PIXELS * graphicsOpts.multiplier));
-	}
-	if (graphicsOpts.fullscreen) {
-		w->enterFullScreen();
-	}
+	w->loadConfig();
+	w->argumentsPassed();
 
 	w->show();
 

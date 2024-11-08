@@ -66,9 +66,15 @@ static const struct GBACartridgeOverride _overrides[] = {
 	// F-Zero - Climax
 	{ "BFTJ", SAVEDATA_FLASH1M, HW_NONE, IDLE_LOOP_NONE, false },
 
+	// Goodboy Galaxy
+	{ "2GBP", SAVEDATA_SRAM, HW_RUMBLE, IDLE_LOOP_NONE, false },
+
 	// Iridion II
 	{ "AI2E", SAVEDATA_FORCE_NONE, HW_NONE, IDLE_LOOP_NONE, false },
 	{ "AI2P", SAVEDATA_FORCE_NONE, HW_NONE, IDLE_LOOP_NONE, false },
+
+	// Game Boy Wars Advance 1+2
+	{ "BGWJ", SAVEDATA_FLASH1M, HW_NONE, IDLE_LOOP_NONE, false },
 
 	// Golden Sun: The Lost Age
 	{ "AGFE", SAVEDATA_FLASH512, HW_NONE, 0x801353A, false },
@@ -120,10 +126,8 @@ static const struct GBACartridgeOverride _overrides[] = {
 	{ "BPEF", SAVEDATA_FLASH1M, HW_RTC, 0x80008C6, false },
 
 	// Pokemon Mystery Dungeon
-	{ "B24J", SAVEDATA_FLASH1M, HW_NONE, IDLE_LOOP_NONE, false },
 	{ "B24E", SAVEDATA_FLASH1M, HW_NONE, IDLE_LOOP_NONE, false },
 	{ "B24P", SAVEDATA_FLASH1M, HW_NONE, IDLE_LOOP_NONE, false },
-	{ "B24U", SAVEDATA_FLASH1M, HW_NONE, IDLE_LOOP_NONE, false },
 
 	// Pokemon FireRed
 	{ "BPRJ", SAVEDATA_FLASH1M, HW_NONE, IDLE_LOOP_NONE, false },
@@ -155,6 +159,10 @@ static const struct GBACartridgeOverride _overrides[] = {
 
 	// Shin Bokura no Taiyou: Gyakushuu no Sabata
 	{ "U33J", SAVEDATA_EEPROM, HW_RTC | HW_LIGHT_SENSOR, IDLE_LOOP_NONE, false },
+
+	// Stuart Little 2
+	{ "ASLE", SAVEDATA_FORCE_NONE, HW_NONE, IDLE_LOOP_NONE, false },
+	{ "ASLF", SAVEDATA_FORCE_NONE, HW_NONE, IDLE_LOOP_NONE, false },
 
 	// Super Mario Advance 2
 	{ "AA2J", SAVEDATA_EEPROM, HW_NONE, 0x800052E, false },
@@ -226,7 +234,6 @@ bool GBAOverrideFind(const struct Configuration* config, struct GBACartridgeOver
 	if (!found && override->id[0] == 'F') {
 		// Classic NES Series
 		override->savetype = SAVEDATA_EEPROM;
-		override->mirroring = true;
 		found = true;
 	}
 
@@ -339,6 +346,7 @@ void GBAOverrideApply(struct GBA* gba, const struct GBACartridgeOverride* overri
 
 		if (override->hardware & HW_RTC) {
 			GBAHardwareInitRTC(&gba->memory.hw);
+			GBASavedataRTCRead(&gba->memory.savedata);
 		}
 
 		if (override->hardware & HW_GYRO) {
@@ -373,10 +381,6 @@ void GBAOverrideApply(struct GBA* gba, const struct GBACartridgeOverride* overri
 		if (gba->idleOptimization == IDLE_LOOP_DETECT) {
 			gba->idleOptimization = IDLE_LOOP_REMOVE;
 		}
-	}
-
-	if (override->mirroring) {
-		gba->memory.mirroring = true;
 	}
 }
 

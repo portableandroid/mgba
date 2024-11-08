@@ -7,12 +7,6 @@
 
 #include <mgba/internal/debugger/cli-debugger.h>
 
-#ifdef USE_GDB_STUB
-#include <mgba/internal/debugger/gdb-stub.h>
-#endif
-#ifdef USE_EDITLINE
-#include "feature/editline/cli-el-backend.h"
-#endif
 #ifdef ENABLE_SCRIPTING
 #include <mgba/core/scripting.h>
 
@@ -21,7 +15,6 @@
 #endif
 #endif
 
-#include <mgba/core/cheats.h>
 #include <mgba/core/core.h>
 #include <mgba/core/config.h>
 #include <mgba/core/input.h>
@@ -38,19 +31,12 @@
 #include <signal.h>
 
 #define PORT "sdl"
-#define MAX_LOG_BUF 1024
 
 static void mSDLDeinit(struct mSDLRenderer* renderer);
 
 static int mSDLRun(struct mSDLRenderer* renderer, struct mArguments* args);
 
-static void _setLogger(struct mCore* core);
-static void _mCoreLog(struct mLogger* logger, int category, enum mLogLevel level, const char* format, va_list args);
-
-static bool _logToStdout = true;
-static struct VFile* _logFile = NULL;
-static struct mLogFilter _filter;
-static struct mLogger _logger;
+static struct mStandardLogger _logger;
 
 static struct VFile* _state = NULL;
 
@@ -68,6 +54,7 @@ int main(int argc, char** argv) {
 		.useBios = true,
 		.rewindEnable = true,
 		.rewindBufferCapacity = 600,
+		.rewindBufferInterval = 1,
 		.audioBuffers = 1024,
 		.videoSync = false,
 		.audioSync = true,
@@ -80,41 +67,41 @@ int main(int argc, char** argv) {
 
 	struct mSubParser subparser;
 
-	initParserForGraphics(&subparser, &graphicsOpts);
-	bool parsed = parseArguments(&args, argc, argv, &subparser);
+	mSubParserGraphicsInit(&subparser, &graphicsOpts);
+	bool parsed = mArgumentsParse(&args, argc, argv, &subparser, 1);
 	if (!args.fname && !args.showVersion) {
 		parsed = false;
 	}
 	if (!parsed || args.showHelp) {
-		usage(argv[0], subparser.usage);
-		freeArguments(&args);
+		usage(argv[0], NULL, NULL, &subparser, 1);
+		mArgumentsDeinit(&args);
 		return !parsed;
 	}
 	if (args.showVersion) {
 		version(argv[0]);
-		freeArguments(&args);
+		mArgumentsDeinit(&args);
 		return 0;
 	}
 
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
 		printf("Could not initialize video: %s\n", SDL_GetError());
-		freeArguments(&args);
+		mArgumentsDeinit(&args);
 		return 1;
 	}
 
 	renderer.core = mCoreFind(args.fname);
 	if (!renderer.core) {
 		printf("Could not run game. Are you sure the file exists and is a compatible game?\n");
-		freeArguments(&args);
+		mArgumentsDeinit(&args);
 		return 1;
 	}
 
 	if (!renderer.core->init(renderer.core)) {
-		freeArguments(&args);
+		mArgumentsDeinit(&args);
 		return 1;
 	}
 
-	renderer.core->desiredVideoDimensions(renderer.core, &renderer.width, &renderer.height);
+	renderer.core->baseVideoSize(renderer.core, &renderer.width, &renderer.height);
 	renderer.ratio = graphicsOpts.multiplier;
 	if (renderer.ratio == 0) {
 		renderer.ratio = 1;
@@ -122,20 +109,11 @@ int main(int argc, char** argv) {
 	opts.width = renderer.width * renderer.ratio;
 	opts.height = renderer.height * renderer.ratio;
 
-	struct mCheatDevice* device = NULL;
-	if (args.cheatsFile && (device = renderer.core->cheatDevice(renderer.core))) {
-		struct VFile* vf = VFileOpen(args.cheatsFile, O_RDONLY);
-		if (vf) {
-			mCheatDeviceClear(device);
-			mCheatParseFile(device, vf);
-			vf->close(vf);
-		}
-	}
-
 	mInputMapInit(&renderer.core->inputMap, &GBAInputInfo);
 	mCoreInitConfig(renderer.core, PORT);
-	applyArguments(&args, &subparser, &renderer.core->config);
+	mArgumentsApply(&args, &subparser, 1, &renderer.core->config);
 
+	mCoreConfigSetDefaultIntValue(&renderer.core->config, "logToStdout", true);
 	mCoreConfigLoadDefaults(&renderer.core->config, &opts);
 	mCoreLoadConfig(renderer.core);
 
@@ -168,7 +146,7 @@ int main(int argc, char** argv) {
 	}
 
 	if (!renderer.init(&renderer)) {
-		freeArguments(&args);
+		mArgumentsDeinit(&args);
 		mCoreConfigDeinit(&renderer.core->config);
 		renderer.core->deinit(renderer.core);
 		return 1;
@@ -188,18 +166,16 @@ int main(int argc, char** argv) {
 	int ret;
 
 	// TODO: Use opts and config
-	_setLogger(renderer.core);
+	mStandardLoggerInit(&_logger);
+	mStandardLoggerConfig(&_logger, &renderer.core->config);
 	ret = mSDLRun(&renderer, &args);
 	mSDLDetachPlayer(&renderer.events, &renderer.player);
 	mInputMapDeinit(&renderer.core->inputMap);
 
-	if (device) {
-		mCheatDeviceDestroy(device);
-	}
-
 	mSDLDeinit(&renderer);
+	mStandardLoggerDeinit(&_logger);
 
-	freeArguments(&args);
+	mArgumentsDeinit(&args);
 	mCoreConfigFreeOpts(&opts);
 	mCoreConfigDeinit(&renderer.core->config);
 	renderer.core->deinit(renderer.core);
@@ -234,7 +210,7 @@ int mSDLRun(struct mSDLRenderer* renderer, struct mArguments* args) {
 		return 1;
 	}
 	mCoreAutoloadSave(renderer->core);
-	mCoreAutoloadCheats(renderer->core);
+	mArgumentsApplyFileLoads(args, renderer->core);
 #ifdef ENABLE_SCRIPTING
 	struct mScriptBridge* bridge = mScriptBridgeCreate();
 #ifdef ENABLE_PYTHON
@@ -246,44 +222,30 @@ int mSDLRun(struct mSDLRenderer* renderer, struct mArguments* args) {
 #endif
 
 #ifdef USE_DEBUGGERS
-	struct mDebugger* debugger = mDebuggerCreate(args->debuggerType, renderer->core);
-	if (debugger) {
-#ifdef USE_EDITLINE
-		if (args->debuggerType == DEBUGGER_CLI) {
-			struct CLIDebugger* cliDebugger = (struct CLIDebugger*) debugger;
-			CLIDebuggerAttachBackend(cliDebugger, CLIDebuggerEditLineBackendCreate());
-		}
-#endif
-		mDebuggerAttach(debugger, renderer->core);
-		mDebuggerEnter(debugger, DEBUGGER_ENTER_MANUAL, NULL);
-#ifdef ENABLE_SCRIPTING
-		mScriptBridgeSetDebugger(bridge, debugger);
-#endif
-	}
-#endif
+	struct mDebugger debugger;
+	mDebuggerInit(&debugger);
+	bool hasDebugger = mArgumentsApplyDebugger(args, renderer->core, &debugger);
 
-	if (args->patch) {
-		struct VFile* patch = VFileOpen(args->patch, O_RDONLY);
-		if (patch) {
-			renderer->core->loadPatch(renderer->core, patch);
-		}
+	if (hasDebugger) {
+		mDebuggerAttach(&debugger, renderer->core);
+		mDebuggerEnter(&debugger, DEBUGGER_ENTER_MANUAL, NULL);
+#ifdef ENABLE_SCRIPTING
+		mScriptBridgeSetDebugger(bridge, &debugger);
+#endif
 	} else {
-		mCoreAutoloadPatch(renderer->core);
+		mDebuggerDeinit(&debugger);
 	}
+#endif
 
 	renderer->audio.samples = renderer->core->opts.audioBuffers;
 	renderer->audio.sampleRate = 44100;
-		
-	struct mThreadLogger threadLogger;
-	threadLogger.d = _logger;
-	threadLogger.p = &thread;
-	thread.logger = threadLogger;
-	
+	thread.logger.logger = &_logger.d;
+
 	bool didFail = !mCoreThreadStart(&thread);
 
 	if (!didFail) {
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-		renderer->core->desiredVideoDimensions(renderer->core, &renderer->width, &renderer->height);
+		renderer->core->currentVideoSize(renderer->core, &renderer->width, &renderer->height);
 		unsigned width = renderer->width * renderer->ratio;
 		unsigned height = renderer->height * renderer->ratio;
 		if (width != (unsigned) renderer->viewportWidth && height != (unsigned) renderer->viewportHeight) {
@@ -308,6 +270,7 @@ int mSDLRun(struct mSDLRenderer* renderer, struct mArguments* args) {
 			if (mCoreThreadHasCrashed(&thread)) {
 				didFail = true;
 				printf("The game crashed!\n");
+				mCoreThreadEnd(&thread);
 			}
 		} else {
 			didFail = true;
@@ -328,6 +291,13 @@ int mSDLRun(struct mSDLRenderer* renderer, struct mArguments* args) {
 	mScriptBridgeDestroy(bridge);
 #endif
 
+#ifdef USE_DEBUGGERS
+	if (hasDebugger) {
+		renderer->core->detachDebugger(renderer->core);
+		mDebuggerDeinit(&debugger);
+	}
+#endif
+
 	return didFail;
 }
 
@@ -341,64 +311,4 @@ static void mSDLDeinit(struct mSDLRenderer* renderer) {
 	renderer->deinit(renderer);
 
 	SDL_Quit();
-}
-
-static void _setLogger(struct mCore* core) {
-	int fakeBool = 0;
-	bool logToFile = false;
-
-	if (mCoreConfigGetIntValue(&core->config, "logToStdout", &fakeBool)) {
-		_logToStdout = fakeBool;
-	}
-	if (mCoreConfigGetIntValue(&core->config, "logToFile", &fakeBool)) {
-		logToFile = fakeBool;
-	}
-	const char* logFile = mCoreConfigGetValue(&core->config, "logFile");
-	
-	if (logToFile && logFile) {
-		_logFile = VFileOpen(logFile, O_WRONLY | O_CREAT | O_APPEND);
-	}
-
-	// Create the filter
-	mLogFilterInit(&_filter);
-	mLogFilterLoad(&_filter, &core->config);
-
-	// Fill the logger
-	_logger.log = _mCoreLog;
-	_logger.filter = &_filter;
-}
-
-static void _mCoreLog(struct mLogger* logger, int category, enum mLogLevel level, const char* format, va_list args) {
-	struct mCoreThread* thread = mCoreThreadGet();
-	if (thread && level == mLOG_FATAL) {
-		mCoreThreadMarkCrashed(thread);
-	}
-	
-	if (!mLogFilterTest(logger->filter, category, level)) {
-		return;
-	}
-
-	char buffer[MAX_LOG_BUF];
-
-	// Prepare the string
-	size_t length = snprintf(buffer, sizeof(buffer), "%s: ", mLogCategoryName(category));
-	if (length < sizeof(buffer)) {
-		length += vsnprintf(buffer + length, sizeof(buffer) - length, format, args);
-	}
-	if (length < sizeof(buffer)) {
-		length += snprintf(buffer + length, sizeof(buffer) - length, "\n");
-	}
-
-	// Make sure the length doesn't exceed the size of the buffer when actually writing
-	if (length > sizeof(buffer)) {
-		length = sizeof(buffer);
-	}
-
-	if (_logToStdout) {
-		printf("%s", buffer);
-	}
-
-	if (_logFile) {
-		_logFile->write(_logFile, buffer, length);
-	}
 }

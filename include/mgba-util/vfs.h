@@ -87,7 +87,7 @@ struct VDir* VDirOpenZip(const char* path, int flags);
 struct VDir* VDirOpen7z(const char* path, int flags);
 #endif
 
-#if defined(__wii__) || defined(_3DS) || defined(PSP2)
+#if defined(__wii__) || defined(__3DS__) || defined(PSP2)
 struct VDir* VDeviceList(void);
 #endif
 
@@ -99,6 +99,9 @@ struct VFile* VFileFromFILE(FILE* file);
 #endif
 
 void separatePath(const char* path, char* dirname, char* basename, char* extension);
+
+bool isAbsolute(const char* path);
+void makeAbsolute(const char* path, const char* base, char* out);
 
 struct VFile* VDirFindFirst(struct VDir* dir, bool (*filter)(struct VFile*));
 struct VFile* VDirFindNextAvailable(struct VDir*, const char* basename, const char* infix, const char* suffix, int mode);

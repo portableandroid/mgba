@@ -25,8 +25,6 @@ static void _rtcProcessByte(struct GBACartridgeHardware* hw);
 static void _rtcUpdateClock(struct GBACartridgeHardware* hw);
 static unsigned _rtcBCD(unsigned value);
 
-static time_t _rtcGenericCallback(struct mRTCSource* source);
-
 static void _gyroReadPins(struct GBACartridgeHardware* hw);
 
 static void _rumbleReadPins(struct GBACartridgeHardware* hw);
@@ -102,6 +100,9 @@ void GBAHardwareInitRTC(struct GBACartridgeHardware* hw) {
 	hw->rtc.command = 0;
 	hw->rtc.control = 0x40;
 	memset(hw->rtc.time, 0, sizeof(hw->rtc.time));
+
+	hw->rtc.lastLatch = 0;
+	hw->rtc.offset = 0;
 }
 
 void _readPins(struct GBACartridgeHardware* hw) {
@@ -280,6 +281,9 @@ void _rtcUpdateClock(struct GBACartridgeHardware* hw) {
 	} else {
 		t = time(0);
 	}
+	hw->rtc.lastLatch = t;
+	t -= hw->rtc.offset;
+
 	struct tm date;
 	localtime_r(&t, &date);
 	hw->rtc.time[0] = _rtcBCD(date.tm_year - 100);
@@ -300,27 +304,6 @@ unsigned _rtcBCD(unsigned value) {
 	value /= 10;
 	counter += (value % 10) << 4;
 	return counter;
-}
-
-time_t _rtcGenericCallback(struct mRTCSource* source) {
-	struct GBARTCGenericSource* rtc = (struct GBARTCGenericSource*) source;
-	switch (rtc->override) {
-	case RTC_NO_OVERRIDE:
-	default:
-		return time(0);
-	case RTC_FIXED:
-		return rtc->value;
-	case RTC_FAKE_EPOCH:
-		return rtc->value + rtc->p->video.frameCounter * (int64_t) VIDEO_TOTAL_LENGTH / GBA_ARM7TDMI_FREQUENCY;
-	}
-}
-
-void GBARTCGenericSourceInit(struct GBARTCGenericSource* rtc, struct GBA* gba) {
-	rtc->p = gba;
-	rtc->override = RTC_NO_OVERRIDE;
-	rtc->value = 0;
-	rtc->d.sample = 0;
-	rtc->d.unixTime = _rtcGenericCallback;
 }
 
 // == Gyro
@@ -391,7 +374,9 @@ void _lightReadPins(struct GBACartridgeHardware* hw) {
 		mLOG(GBA_HW, DEBUG, "[SOLAR] Got reset");
 		hw->lightCounter = 0;
 		if (lux) {
-			lux->sample(lux);
+			if (lux->sample) {
+				lux->sample(lux);
+			}
 			hw->lightSample = lux->readLuminance(lux);
 		} else {
 			hw->lightSample = 0xFF;
@@ -438,8 +423,8 @@ void GBAHardwareTiltWrite(struct GBACartridgeHardware* hw, uint32_t address, uin
 			int32_t x = rotationSource->readTiltX(rotationSource);
 			int32_t y = rotationSource->readTiltY(rotationSource);
 			// Normalize to ~12 bits, focused on 0x3A0
-			hw->tiltX = (x >> 21) + 0x3A0; // Crop off an extra bit so that we can't go negative
-			hw->tiltY = (y >> 21) + 0x3A0;
+			hw->tiltX = 0x3A0 - (x >> 22);
+			hw->tiltY = 0x3A0 - (y >> 22);
 		} else {
 			mLOG(GBA_HW, GAME_ERROR, "Tilt sensor wrote wrong byte to %04x: %02x", address, value);
 		}
@@ -539,7 +524,7 @@ void GBAHardwareDeserialize(struct GBACartridgeHardware* hw, const struct GBASer
 	LOAD_32(when, 0, &state->hw.gbpNextEvent);
 	if (hw->devices & HW_GB_PLAYER) {
 		GBASIOSetDriver(&hw->p->sio, &hw->p->sio.gbp.d, SIO_NORMAL_32);
-		if (hw->p->memory.io[REG_SIOCNT >> 1] & 0x0080) {
+		if (hw->p->memory.io[GBA_REG(SIOCNT)] & 0x0080) {
 			mTimingSchedule(&hw->p->timing, &hw->p->sio.gbp.event, when);
 		}
 	}
